@@ -11,7 +11,14 @@ type Entry = { doc: Y.Doc; persistence: IndexeddbPersistence; ready: Promise<voi
 
 const open = new Map<string, Entry>()
 
-export const docName = (pageId: string) => `tessera-doc-${pageId}`
+let docPrefix = 'tessera-doc-'
+
+/** Per-user document databases, matching scopeDb(). */
+export function scopeDocs(userId: string | null): void {
+  docPrefix = userId ? `tessera-doc-${userId}-` : 'tessera-doc-'
+}
+
+export const docName = (pageId: string) => `${docPrefix}${pageId}`
 
 export type DocHandle = { doc: Y.Doc; ready: Promise<void>; release: () => void }
 

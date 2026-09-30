@@ -266,6 +266,22 @@ describe('DocSync', () => {
     expect(names()).not.toContain('Cy')
   })
 
+  it('never sends anything in read-only mode, but still receives', async () => {
+    const editor = await peer(server, 'editor')
+    const doc = new Y.Doc()
+    doc.getText('t').insert(0, 'stray local state ') // e.g. an editor plugin normalizing the doc
+    const sync = new DocSync({ transport: server.client('viewer'), pageId: PAGE, doc, flushDelayMs: 0 })
+    sync.readOnly = true
+    await sync.start()
+    doc.getText('t').insert(0, 'typed anyway')
+    type(editor, 0, 'from the editor ')
+    await settle()
+    expect(server.appendCount).toBe(1) // only the editor's edit
+    expect(doc.getText('t').toString()).toContain('from the editor')
+    expect(sync.status).toBe('synced')
+    await sync.destroy()
+  })
+
   it('flushes pending edits when destroyed', async () => {
     const doc = new Y.Doc()
     const client = server.client('a')

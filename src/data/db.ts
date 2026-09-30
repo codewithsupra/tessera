@@ -11,8 +11,8 @@ class TesseraDB extends Dexie {
   pages!: Table<PageRow, string>
   meta!: Table<MetaRow, string>
 
-  constructor() {
-    super('tessera')
+  constructor(name: string) {
+    super(name)
     this.version(1).stores({ pages: 'id, workspaceId, parentId, updatedAt' })
     // v2 (M3 sync): dirty flags for push, a meta table for pull cursors.
     this.version(2)
@@ -29,4 +29,18 @@ class TesseraDB extends Dexie {
   }
 }
 
-export const db = new TesseraDB()
+const nameFor = (userId: string | null) => (userId ? `tessera-${userId}` : 'tessera')
+
+/**
+ * The signed-in user's local database. Each account on a device gets its own, so switching
+ * accounts never mixes (or purges) another person's offline data. A live binding: importers
+ * always see the current one.
+ */
+export let db = new TesseraDB(nameFor(null))
+
+export function scopeDb(userId: string | null): void {
+  const name = nameFor(userId)
+  if (db.name === name) return
+  db.close()
+  db = new TesseraDB(name)
+}

@@ -9,6 +9,8 @@ import { useUiStore } from '../data/uiStore'
 import { useWorkspaceId } from '../data/workspace'
 import { summarizeStatus, useSyncStore } from '../sync/syncStore'
 import { Logo } from './Logo'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import { canEdit } from '../data/workspaces'
 
 const iconBtn = 'flex h-6 w-6 items-center justify-center rounded text-ink-faint hover:bg-line/60 hover:text-ink'
 
@@ -17,6 +19,7 @@ export function Sidebar() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const rows = useLiveQuery(() => listPages(ws), [ws])
+  const editable = canEdit(useSyncStore((s) => s.role))
   const [trashOpen, setTrashOpen] = useState(false)
   const closeMobile = () => useUiStore.getState().setSidebarOpen(false)
 
@@ -29,7 +32,8 @@ export function Sidebar() {
 
   async function onSignOut() {
     await signOut()
-    await navigate({ to: '/' })
+    // A full reload drops every in-memory cache (open docs, stores) before the next account.
+    window.location.replace('/')
   }
 
   const tree = rows ? buildTree(rows) : []
@@ -41,22 +45,30 @@ export function Sidebar() {
         <Link to="/app" onClick={closeMobile} aria-label="Workspace home">
           <Logo size={24} />
         </Link>
-        <p className="mt-5 truncate text-sm font-medium text-ink">{user?.name ?? user?.email}</p>
+      </div>
+      <div className="mt-4 px-0.5">
+        <WorkspaceSwitcher />
+      </div>
+      <div className="px-2.5">
         <WorkspaceSyncLabel />
       </div>
 
-      <button
-        onClick={() => newPage()}
-        className="mx-1 mt-5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink-soft hover:bg-line/50 hover:text-ink"
-      >
-        <Plus size={16} aria-hidden="true" /> New page
-      </button>
+      {editable ? (
+        <button
+          onClick={() => newPage()}
+          className="mx-1 mt-4 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink-soft hover:bg-line/50 hover:text-ink"
+        >
+          <Plus size={16} aria-hidden="true" /> New page
+        </button>
+      ) : (
+        <p className="mx-1 mt-4 px-2 py-1.5 text-xs text-ink-faint">You can view pages here. Ask the owner for edit access.</p>
+      )}
 
       <div className="mt-2 flex-1 overflow-y-auto">
         {rows && tree.length === 0 && <p className="px-3 py-2 text-sm text-ink-faint">No pages yet.</p>}
         <ul role="tree" aria-label="Page tree">
           {tree.map((n) => (
-            <TreeRow key={n.id} node={n} depth={0} rows={rows ?? []} onAdd={newPage} />
+            <TreeRow key={n.id} node={n} depth={0} rows={rows ?? []} onAdd={newPage} editable={editable} />
           ))}
         </ul>
       </div>
@@ -75,22 +87,26 @@ export function Sidebar() {
             {trash.map((p) => (
               <li key={p.id} className="flex items-center gap-2 rounded-md px-3 py-1 text-sm text-ink-soft">
                 <span className="flex-1 truncate">{displayTitle(p.title)}</span>
-                <button onClick={() => restorePage(p.id)} className={iconBtn} aria-label={`Restore ${displayTitle(p.title)}`} title="Restore">
+                {editable && <button onClick={() => restorePage(p.id)} className={iconBtn} aria-label={`Restore ${displayTitle(p.title)}`} title="Restore">
                   <RotateCcw size={14} aria-hidden="true" />
-                </button>
+                </button>}
               </li>
             ))}
           </ul>
         )}
-        <button onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-ink-soft hover:bg-line/50 hover:text-ink">
-          <LogOut size={15} aria-hidden="true" /> Sign out
+        <button onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-ink-soft hover:bg-line/50 hover:text-ink" title={`Signed in as ${user?.email ?? ''}`}>
+          <LogOut size={15} className="shrink-0" aria-hidden="true" />
+          <span className="min-w-0">
+            <span className="block">Sign out</span>
+            <span className="block truncate text-xs text-ink-faint">{user?.email}</span>
+          </span>
         </button>
       </div>
     </nav>
   )
 }
 
-function TreeRow({ node, depth, rows, onAdd }: { node: TreeNode; depth: number; rows: PageRow[]; onAdd: (parentId: string) => void }) {
+function TreeRow({ node, depth, rows, onAdd, editable }: { node: TreeNode; depth: number; rows: PageRow[]; onAdd: (parentId: string) => void; editable: boolean }) {
   const expanded = useUiStore((s) => !!s.expanded[node.id])
   const toggle = useUiStore((s) => s.toggle)
   const params = useParams({ strict: false }) as { pageId?: string }
@@ -122,6 +138,7 @@ function TreeRow({ node, depth, rows, onAdd }: { node: TreeNode; depth: number; 
           <FileText size={15} className="shrink-0 opacity-60" aria-hidden="true" />
           <span className={`truncate ${node.title.trim() ? '' : 'text-ink-faint'}`}>{title}</span>
         </Link>
+        {editable && (
         <span className="flex opacity-0 focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           <button onClick={() => onAdd(node.id)} className={iconBtn} aria-label={`Add a page inside ${title}`} title="Add a page inside">
             <Plus size={14} aria-hidden="true" />
@@ -130,11 +147,12 @@ function TreeRow({ node, depth, rows, onAdd }: { node: TreeNode; depth: number; 
             <Trash2 size={14} aria-hidden="true" />
           </button>
         </span>
+        )}
       </div>
       {expanded && node.children.length > 0 && (
         <ul role="group">
           {node.children.map((c) => (
-            <TreeRow key={c.id} node={c} depth={depth + 1} rows={rows} onAdd={onAdd} />
+            <TreeRow key={c.id} node={c} depth={depth + 1} rows={rows} onAdd={onAdd} editable={editable} />
           ))}
         </ul>
       )}
@@ -150,7 +168,7 @@ function WorkspaceSyncLabel() {
   return (
     <p className="flex items-center gap-1.5 truncate text-xs text-ink-faint">
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status === 'synced' ? 'bg-verdigris' : status === 'offline' ? 'bg-gold' : 'bg-ink-faint'}`} aria-hidden="true" />
-      Personal · {text}
+      {text}
     </p>
   )
 }

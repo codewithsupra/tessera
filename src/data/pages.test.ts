@@ -83,3 +83,16 @@ describe('pages store', () => {
     expect(child?.parentId).toBeNull()
   })
 })
+
+describe('per-user database', () => {
+  it('switches databases by user, leaving the other user’s rows untouched', async () => {
+    const mod = await import('./db')
+    mod.scopeDb('alice')
+    await createPage('w-alice')
+    mod.scopeDb('bob')
+    expect(await mod.db.pages.count()).toBe(0)
+    mod.scopeDb('alice')
+    expect(await mod.db.pages.count()).toBe(1)
+    mod.scopeDb(null)
+  })
+})

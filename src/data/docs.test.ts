@@ -58,3 +58,24 @@ describe('openDoc', () => {
     expect(openDoc('page-2').doc).toBe(h2.doc)
   })
 })
+
+describe('per-user scope', () => {
+  it('keeps each account’s documents in separate databases', async () => {
+    const { scopeDocs, docName } = await import('./docs')
+    scopeDocs('alice')
+    const a = openDoc('shared-page')
+    await a.ready
+    a.doc.getText('title').insert(0, 'Alice private draft')
+    await new Promise((r) => setTimeout(r, 50))
+    a.release()
+    await new Promise((r) => setTimeout(r, 50))
+
+    scopeDocs('bob')
+    expect(docName('shared-page')).toBe('tessera-doc-bob-shared-page')
+    const b = openDoc('shared-page')
+    await b.ready
+    expect(b.doc.getText('title').toString()).toBe('')
+    b.release()
+    scopeDocs(null)
+  })
+})

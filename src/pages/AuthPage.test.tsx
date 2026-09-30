@@ -88,6 +88,6 @@ describe('AuthPage', () => {
   it('starts OAuth with the chosen provider', async () => {
     const auth = renderAuth('signin')
     await userEvent.click(await screen.findByRole('button', { name: 'Continue with GitHub' }))
-    expect(auth.signInWithOAuth).toHaveBeenCalledWith('github')
+    expect(auth.signInWithOAuth).toHaveBeenCalledWith('github', '/app')
   })
 })

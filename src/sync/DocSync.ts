@@ -63,6 +63,12 @@ export class DocSync {
    * diffs against the server, an empty queue does NOT mean the server has everything.
    */
   private unconfirmed = false
+  /** Viewers only listen: nothing local is ever sent (the server would refuse it anyway). */
+  readOnly = false
+
+  setReadOnly(readOnly: boolean) {
+    this.readOnly = readOnly
+  }
   status: SyncStatus = 'connecting'
 
   constructor(opts: Options) {
@@ -151,7 +157,7 @@ export class DocSync {
       // `missing` is computed against the server's actual state, so it covers anything dropped earlier.
       this.unconfirmed = false
       if (state.updates.length >= (this.opts.compactThreshold ?? 200)) this.t.requestCompaction(this.pageId)
-      if (serverLacksSomething) {
+      if (serverLacksSomething && !this.readOnly) {
         this.queue.push(missing)
         await this.flush() // sets synced/offline itself
       } else if (this.queue.length === 0) {
@@ -164,7 +170,7 @@ export class DocSync {
   }
 
   private onLocalUpdate = (update: Uint8Array, origin: unknown) => {
-    if (origin === this || this.destroyed) return
+    if (origin === this || this.destroyed || this.readOnly) return
     this.queue.push(update)
     this.setDirty(true)
     this.setStatus('saving')

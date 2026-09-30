@@ -7,79 +7,83 @@ import { insforgePagesApi } from './insforgePagesApi'
 import { PagesSyncEngine, adoptLocalPages } from './pagesSync'
 import { uploadDirtyDocs } from './registry'
 import { useSyncStore } from './syncStore'
-
-const wsKey = (uid: string) => `tessera:ws:${uid}`
-
-function readCachedWorkspace(uid: string): string | null {
-  try {
-    return localStorage.getItem(wsKey(uid))
-  } catch {
-    return null
-  }
-}
+import { cachedWorkspaces, preferredWorkspace, refreshWorkspaces, switchWorkspace } from './workspaceActions'
 
 /**
- * Runs background sync for the signed-in user. Renders nothing.
- * Offline on first launch? Work continues in the local workspace and is adopted into
- * the cloud workspace the first time the server is reachable.
+ * Background sync for the signed-in user. Renders nothing.
+ * 1. Bootstrap: resolve the personal workspace, adopt pages made before first contact,
+ *    load the workspace list, pick the active workspace (remembered per device).
+ * 2. Engine: keep the *active* workspace's page index in sync; restart when it changes.
+ * Offline on first launch? Work continues in the on-device workspace until the server is reachable.
  */
 export function SyncManager() {
   const { user } = useAuth()
   const uid = user?.id
+  const active = useSyncStore((s) => s.workspaceId)
 
+  // 1. Bootstrap
   useEffect(() => {
     if (!uid) return
     const store = useSyncStore.getState()
-    const cached = readCachedWorkspace(uid)
-    store.setWorkspace(cached ?? localWorkspaceId(uid))
+    const cached = cachedWorkspaces(uid)
+    store.setWorkspaces(cached)
+    const pref = preferredWorkspace(uid)
+    const start = (pref && cached.some((w) => w.id === pref) && pref) || cached.find((w) => w.isPersonal)?.id || localWorkspaceId(uid)
+    store.setWorkspace(start)
 
     let stopped = false
-    let engine: PagesSyncEngine | null = null
-
+    let retry: ReturnType<typeof setTimeout> | undefined
     const run = async () => {
       const { data, error } = await insforge.database.rpc('ensure_personal_workspace')
       if (stopped) return
       if (error || typeof data !== 'string') {
         store.setPages('offline')
-        setTimeout(() => !stopped && void run(), 5000)
+        retry = setTimeout(() => void run(), 5000)
         return
       }
-      const ws = data
-      try {
-        localStorage.setItem(wsKey(uid), ws)
-      } catch {
-        // private mode: we'll just ask the server again next launch
-      }
-      await adoptLocalPages(localWorkspaceId(uid), ws)
+      await adoptLocalPages(localWorkspaceId(uid), data)
+      const list = await refreshWorkspaces(uid).catch(() => cachedWorkspaces(uid))
       if (stopped) return
-      store.setWorkspace(ws)
-
-      engine = new PagesSyncEngine(ws, insforgePagesApi, (s) => useSyncStore.getState().setPages(s))
-      setLocalChangeListener(() => engine?.schedulePush())
-      await engine.start()
-      if (!stopped) await uploadDirtyDocs(ws, () => stopped)
+      const current = useSyncStore.getState().workspaceId
+      if (!current || current.startsWith('local:') || !list.some((w) => w.id === current)) switchWorkspace(uid, data)
     }
     void run()
 
     const onOnline = () => {
       useSyncStore.getState().setOnline(true)
-      void engine?.sync().then(() => {
-        const ws = useSyncStore.getState().workspaceId
-        if (ws && !stopped) void uploadDirtyDocs(ws, () => stopped)
-      })
+      void refreshWorkspaces(uid).catch(() => {})
     }
     const onOffline = () => useSyncStore.getState().setOnline(false)
+    const onFocus = () => void refreshWorkspaces(uid).catch(() => {})
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
-
+    window.addEventListener('focus', onFocus)
     return () => {
       stopped = true
-      engine?.stop()
-      setLocalChangeListener(() => {})
+      clearTimeout(retry)
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
+      window.removeEventListener('focus', onFocus)
     }
   }, [uid])
+
+  // 2. Page-index sync for the active cloud workspace
+  useEffect(() => {
+    if (!uid || !active || active.startsWith('local:')) return
+    let stopped = false
+    const engine = new PagesSyncEngine(active, insforgePagesApi, (s) => useSyncStore.getState().setPages(s))
+    setLocalChangeListener(() => engine.schedulePush())
+    const upload = () => (stopped ? undefined : uploadDirtyDocs(active, () => stopped))
+    void engine.start().then(upload)
+    const onOnline = () => void engine.sync().then(upload)
+    window.addEventListener('online', onOnline)
+    return () => {
+      stopped = true
+      engine.stop()
+      setLocalChangeListener(() => {})
+      window.removeEventListener('online', onOnline)
+    }
+  }, [uid, active])
 
   return null
 }

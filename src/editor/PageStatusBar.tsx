@@ -12,7 +12,7 @@ const LABEL = {
   error: { text: 'Can’t sync this page', icon: TriangleAlert, cls: 'text-danger' },
 } as const
 
-export function PageStatusBar({ pageId, sync, selfId }: { pageId: string; sync: DocSync; selfId?: string }) {
+export function PageStatusBar({ pageId, sync, selfId, readOnly }: { pageId: string; sync: DocSync; selfId?: string; readOnly?: boolean }) {
   const online = useSyncStore((s) => s.online)
   const pages = useSyncStore((s) => s.pages)
   const doc = useSyncStore((s) => s.docs[pageId])
@@ -45,6 +45,7 @@ export function PageStatusBar({ pageId, sync, selfId }: { pageId: string; sync: 
           {peers.length > 5 && <li className="flex h-6 items-center pl-2.5 text-ink-faint">+{peers.length - 5}</li>}
         </ul>
       )}
+      {readOnly && <span className="rounded-full border border-line px-2 py-0.5 text-ink-soft">View only</span>}
       <span className={`flex items-center gap-1 ${cls}`} role="status" aria-live="polite">
         <Icon size={13} className={status === 'saving' ? 'animate-spin' : ''} aria-hidden="true" />
         {text}

@@ -1,7 +1,8 @@
 import { Link, Outlet, getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { FilePlus2, Menu, X } from 'lucide-react'
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
+import { takeRememberedNext } from '../auth/next'
 import { Sidebar } from '../components/Sidebar'
 import { SyncManager } from '../sync/SyncManager'
 import { db } from '../data/db'
@@ -9,6 +10,11 @@ import { createPage, listPages } from '../data/pages'
 import { displayTitle } from '../data/tree'
 import { useUiStore } from '../data/uiStore'
 import { useWorkspaceId } from '../data/workspace'
+import { canEdit } from '../data/workspaces'
+import { useAuth } from '../auth/context'
+import { useSyncStore } from '../sync/syncStore'
+import { insforge } from '../lib/insforge'
+import { switchWorkspace } from '../sync/workspaceActions'
 
 // The editor stack (TipTap, ProseMirror, Yjs) is the bulk of the bundle; load it only when a page opens.
 const PageEditor = lazy(() => import('../editor/PageEditor').then((m) => ({ default: m.PageEditor })))
@@ -16,6 +22,13 @@ const PageEditor = lazy(() => import('../editor/PageEditor').then((m) => ({ defa
 export function AppLayout() {
   const open = useUiStore((s) => s.sidebarOpen)
   const setOpen = useUiStore((s) => s.setSidebarOpen)
+  const navigate = useNavigate()
+
+  // Continue where an OAuth sign-in started (e.g. an invite link).
+  useEffect(() => {
+    const next = takeRememberedNext()
+    if (next) void navigate({ to: next })
+  }, [navigate])
 
   useEffect(() => {
     if (!open) return
@@ -59,6 +72,7 @@ export function AppLayout() {
 
 export function AppHome() {
   const ws = useWorkspaceId()
+  const editable = canEdit(useSyncStore((s) => s.role))
   const navigate = useNavigate()
   const recent = useLiveQuery(
     async () => (await listPages(ws)).filter((p) => p.deletedAt === null).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8),
@@ -76,10 +90,14 @@ export function AppHome() {
     return (
       <div className="flex min-h-[70dvh] flex-col items-center justify-center px-6 text-center">
         <h1 className="font-display text-3xl font-medium tracking-tight">This workspace is empty</h1>
-        <p className="mt-3 max-w-sm text-ink-soft">Pages you create are saved on this device first, so they open instantly and work offline.</p>
-        <button onClick={newPage} className="mt-6 inline-flex items-center gap-2 rounded-md bg-lapis px-4 py-2.5 text-[15px] font-medium text-plaster hover:opacity-90">
+        <p className="mt-3 max-w-sm text-ink-soft">
+          {editable
+            ? 'Pages you create are saved on this device first, so they open instantly and work offline.'
+            : 'Nothing has been shared here yet. Pages will appear as soon as someone adds them.'}
+        </p>
+        {editable && <button onClick={newPage} className="mt-6 inline-flex items-center gap-2 rounded-md bg-lapis px-4 py-2.5 text-[15px] font-medium text-plaster hover:opacity-90">
           <FilePlus2 size={18} aria-hidden="true" /> New page
-        </button>
+        </button>}
       </div>
     )
   }
@@ -99,15 +117,19 @@ export function AppHome() {
           </li>
         ))}
       </ul>
-      <button onClick={newPage} className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-lapis hover:underline">
-        <FilePlus2 size={16} aria-hidden="true" /> New page
-      </button>
+      {editable && (
+        <button onClick={newPage} className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-lapis hover:underline">
+          <FilePlus2 size={16} aria-hidden="true" /> New page
+        </button>
+      )}
     </div>
   )
 }
 
 export function PageView({ pageId }: { pageId: string }) {
   const ws = useWorkspaceId()
+  const { user } = useAuth()
+  const myWorkspaces = useSyncStore((s) => s.workspaces)
   // undefined = still loading, null = not found
   const page = useLiveQuery(async () => (await db.pages.get(pageId)) ?? null, [pageId])
 
@@ -118,12 +140,37 @@ export function PageView({ pageId }: { pageId: string }) {
     }
   }, [page])
 
-  if (page === undefined) return null
+  // The page may belong to another of my workspaces — known locally, or (fresh device) only
+  // to the server. RLS answers only for members, so a hit is always one I may open.
+  const [remoteWs, setRemoteWs] = useState<string | null | undefined>(undefined)
+  const localOther = page && page.workspaceId !== ws ? page.workspaceId : null
+  useEffect(() => {
+    if (page !== null) return
+    let cancelled = false
+    insforge.database
+      .from('pages')
+      .select('workspace_id')
+      .eq('id', pageId)
+      .maybeSingle()
+      .then(({ data }) => !cancelled && setRemoteWs((data as { workspace_id: string } | null)?.workspace_id ?? null))
+    return () => {
+      cancelled = true
+    }
+  }, [page, pageId])
+
+  const target = localOther ?? (page === null ? remoteWs : null)
+  const canSwitch = !!target && target !== ws && myWorkspaces.some((w) => w.id === target)
+  useEffect(() => {
+    if (canSwitch && user && target) switchWorkspace(user.id, target)
+  }, [canSwitch, user, target])
+
+  const lookingUp = page === null && remoteWs === undefined
+  if (page === undefined || canSwitch || lookingUp) return <div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />
   if (!page || page.workspaceId !== ws) {
     return (
       <div className="px-6 pt-24 text-center">
-        <h1 className="font-display text-2xl font-medium">This page isn't in your workspace</h1>
-        <p className="mt-2 text-ink-soft">It may have been deleted, or it lives on another device that hasn't synced yet.</p>
+        <h1 className="font-display text-2xl font-medium">This page isn't available</h1>
+        <p className="mt-2 text-ink-soft">It may have been deleted, or it’s in a workspace you haven’t been invited to.</p>
         <Link to="/app" className="mt-5 inline-block text-sm font-medium text-lapis hover:underline">
           Go to your workspace
         </Link>

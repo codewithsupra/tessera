@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { Logo } from '../components/Logo'
 import { useAuth, type OAuthProvider } from '../auth/context'
+import { safeNext, withNext } from '../auth/next'
 import { validate, type AuthMode as Mode } from './authValidation'
 
 
@@ -29,12 +30,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
     const res = mode === 'signin' ? await signIn(email.trim(), password) : await signUp(name.trim(), email.trim(), password)
     setBusy(false)
     if (res.error) return setError(res.error)
-    await navigate({ to: '/app' })
+    await navigate({ to: safeNext() })
   }
 
   async function oauth(provider: OAuthProvider) {
     setError(null)
-    const res = await signInWithOAuth(provider)
+    const res = await signInWithOAuth(provider, safeNext())
     if (res.error) setError(res.error)
   }
 
@@ -96,9 +97,9 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
         <p className="mt-6 text-sm text-ink-soft">
           {c.switchText}{' '}
-          <Link to={c.to} className="font-medium text-lapis hover:underline">
+          <a href={withNext(c.to, safeNext())} className="font-medium text-lapis hover:underline">
             {c.switchLink}
-          </Link>
+          </a>
         </p>
       </main>
     </div>

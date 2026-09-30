@@ -28,22 +28,24 @@ export type SyncHandle = {
   release: () => Promise<void>
 }
 
-export function acquireSync(pageId: string): SyncHandle {
+export function acquireSync(pageId: string, opts: { readOnly?: boolean } = {}): SyncHandle {
   let e = live.get(pageId)
   if (!e) {
     const handle = openDoc(pageId)
     // Create the sync only after IndexedDB has loaded: otherwise the load itself looks like
     // local edits and the whole document would be re-uploaded on every open.
-    const localReady = handle.ready.then(
-      () =>
-        new DocSync({
-          transport,
-          pageId,
-          doc: handle.doc,
-          onStatus: (s) => useSyncStore.getState().setDoc(pageId, s),
-          onDirtyChange: (d) => void db.pages.update(pageId, { docDirty: d ? 1 : 0 }),
-        }),
-    )
+    const localReady = handle.ready.then(() => {
+      const sync = new DocSync({
+        transport,
+        pageId,
+        doc: handle.doc,
+        onStatus: (s) => useSyncStore.getState().setDoc(pageId, s),
+        onDirtyChange: (d) => void db.pages.update(pageId, { docDirty: d ? 1 : 0 }),
+      })
+      // Set before start(): a viewer's sync must never send, not even during the first reconcile.
+      sync.setReadOnly(!!opts.readOnly)
+      return sync
+    })
     const ready = localReady.then(async (sync) => {
       await sync.start()
       return sync

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { insforge } from '../lib/insforge'
 import { AuthContext, type AuthUser, type OAuthProvider } from './context'
+import { setDataScope } from '../data/scope'
+import { rememberNext } from './next'
 import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
 
 type SdkUser = { id: string; email: string; profile?: { name?: string } | null } | null | undefined
@@ -14,10 +16,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const setUser = useCallback((u: AuthUser | null) => {
-    writeCachedUser(u)
+  // Storage is scoped before the user's data can render.
+  const showUser = useCallback((u: AuthUser | null) => {
+    if (u) setDataScope(u.id)
     setUserState(u)
   }, [])
+
+  const setUser = useCallback(
+    (u: AuthUser | null) => {
+      writeCachedUser(u)
+      showUser(u)
+    },
+    [showUser],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -25,14 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return
       const next = resolveSession({ user: toUser(data?.user as SdkUser), error }, readCachedUser())
       // Offline fallback keeps the cache; only a definitive server answer rewrites it.
-      if (isUnreachable(error) && !data?.user) setUserState(next)
+      if (isUnreachable(error) && !data?.user) showUser(next)
       else setUser(next)
       setLoading(false)
     })
     return () => {
       cancelled = true
     }
-  }, [setUser])
+  }, [setUser, showUser])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
@@ -49,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }, [setUser])
 
-  const signInWithOAuth = useCallback(async (provider: OAuthProvider) => {
+  const signInWithOAuth = useCallback(async (provider: OAuthProvider, next = '/app') => {
+    rememberNext(next)
     const { error } = await insforge.auth.signInWithOAuth(provider, {
       redirectTo: `${window.location.origin}/app`,
     })

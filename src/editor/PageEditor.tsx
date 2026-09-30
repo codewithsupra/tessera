@@ -10,6 +10,8 @@ import { GripVertical } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type * as Y from 'yjs'
 import { useAuth } from '../auth/context'
+import { canEdit } from '../data/workspaces'
+import { useSyncStore } from '../sync/syncStore'
 import { applyTextDiff } from '../data/docs'
 import { setPageTitle } from '../data/pages'
 import type { DocSync } from '../sync/DocSync'
@@ -22,9 +24,10 @@ import { SlashMenu } from './SlashMenu'
 /** Opens the page's local Y.Doc (instant), starts cloud sync in the background, mounts the editor. */
 export function PageEditor({ pageId }: { pageId: string }) {
   const [state, setState] = useState<{ doc: Y.Doc; sync: DocSync } | null>(null)
+  const readOnly = !canEdit(useSyncStore((s) => s.role))
 
   useEffect(() => {
-    const handle = acquireSync(pageId)
+    const handle = acquireSync(pageId, { readOnly })
     let alive = true
     void handle.localReady.then((sync) => alive && setState({ doc: handle.doc, sync }))
     return () => {
@@ -32,7 +35,8 @@ export function PageEditor({ pageId }: { pageId: string }) {
       setState(null)
       void handle.release()
     }
-  }, [pageId])
+    // A role change (rare) re-acquires the page with the right mode from the very first sync.
+  }, [pageId, readOnly])
 
   if (!state) return <div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />
   return <LoadedEditor key={pageId} pageId={pageId} doc={state.doc} sync={state.sync} />
@@ -42,8 +46,10 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
   const { user } = useAuth()
   const name = user?.name ?? user?.email ?? 'Someone'
   const color = colorFor(user?.id ?? 'anon')
+  const editable = canEdit(useSyncStore((s) => s.role))
 
   const editor = useEditor({
+    editable,
     extensions: [
       StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true } }),
       TaskList,
@@ -59,13 +65,19 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
     editorProps: { attributes: { class: 'tessera-prose', 'aria-label': 'Page content' } },
   })
 
+  // Viewers get a read-only editor and a sync that never sends (the server would refuse anyway).
+  useEffect(() => {
+    sync.setReadOnly(!editable)
+    if (editor && editor.isEditable !== editable) editor.setEditable(editable)
+  }, [editor, sync, editable])
+
   return (
     <article className="mx-auto w-full max-w-[720px] px-5 pb-40 pt-6 sm:px-12">
-      <PageStatusBar pageId={pageId} sync={sync} selfId={user?.id} />
+      <PageStatusBar pageId={pageId} sync={sync} selfId={user?.id} readOnly={!editable} />
       <div className="pt-8">
-        <TitleField pageId={pageId} doc={doc} editor={editor} />
+        <TitleField pageId={pageId} doc={doc} editor={editor} readOnly={!editable} />
       </div>
-      {editor && (
+      {editor && editable && (
         <DragHandle editor={editor}>
           <span className="flex h-6 w-5 cursor-grab items-center justify-center rounded text-ink-faint hover:bg-plaster-deep" aria-label="Drag to move block">
             <GripVertical size={16} aria-hidden="true" />
@@ -78,7 +90,7 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
   )
 }
 
-function TitleField({ pageId, doc, editor }: { pageId: string; doc: Y.Doc; editor: Editor | null }) {
+function TitleField({ pageId, doc, editor, readOnly }: { pageId: string; doc: Y.Doc; editor: Editor | null; readOnly: boolean }) {
   const ytitle = doc.getText('title')
   const [title, setTitle] = useState(() => ytitle.toString())
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -86,19 +98,20 @@ function TitleField({ pageId, doc, editor }: { pageId: string; doc: Y.Doc; edito
   // Y.Text is the source of truth (it merges remote edits); mirror it into the local index.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
+    // Viewers only display the title; mirroring it would mark the page dirty for a push they can't make.
     const sync = () => {
       const next = ytitle.toString()
       setTitle(next)
       clearTimeout(timer)
-      timer = setTimeout(() => void setPageTitle(pageId, next), 250)
+      if (!readOnly) timer = setTimeout(() => void setPageTitle(pageId, next), 250)
     }
     ytitle.observe(sync)
     return () => {
       ytitle.unobserve(sync)
       clearTimeout(timer)
-      void setPageTitle(pageId, ytitle.toString())
+      if (!readOnly) void setPageTitle(pageId, ytitle.toString())
     }
-  }, [ytitle, pageId])
+  }, [ytitle, pageId, readOnly])
 
   // Grow with content.
   useEffect(() => {
@@ -110,8 +123,8 @@ function TitleField({ pageId, doc, editor }: { pageId: string; doc: Y.Doc; edito
 
   // New, empty pages start with the cursor in the title.
   useEffect(() => {
-    if (!ytitle.toString()) ref.current?.focus()
-  }, [ytitle])
+    if (!ytitle.toString() && !readOnly) ref.current?.focus()
+  }, [ytitle, readOnly])
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' || (e.key === 'ArrowDown' && e.currentTarget.selectionStart === title.length)) {
@@ -129,7 +142,8 @@ function TitleField({ pageId, doc, editor }: { pageId: string; doc: Y.Doc; edito
       ref={ref}
       rows={1}
       value={title}
-      onChange={(e) => applyTextDiff(ytitle, e.target.value.replace(/\n/g, ' '))}
+      readOnly={readOnly}
+      onChange={(e) => !readOnly && applyTextDiff(ytitle, e.target.value.replace(/\n/g, ' '))}
       onKeyDown={onKeyDown}
       placeholder="Untitled"
       aria-label="Page title"

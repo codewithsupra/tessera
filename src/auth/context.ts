@@ -9,7 +9,7 @@ export type AuthValue = {
   loading: boolean
   signIn: (email: string, password: string) => Promise<AuthResult>
   signUp: (name: string, email: string, password: string) => Promise<AuthResult>
-  signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResult>
+  signInWithOAuth: (provider: OAuthProvider, next?: string) => Promise<AuthResult>
   signOut: () => Promise<void>
 }
 
