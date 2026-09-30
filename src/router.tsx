@@ -4,8 +4,9 @@ import { AuthPage } from './pages/AuthPage'
 import { LazyAppHome, LazyAppLayout, LazyPageRoute } from './pages/lazyApp'
 import { InvitePage } from './pages/InvitePage'
 import { Landing } from './pages/Landing'
+import { NotFound } from './pages/NotFound'
 
-const rootRoute = createRootRoute({ component: Outlet })
+const rootRoute = createRootRoute({ component: Outlet, notFoundComponent: NotFound })
 
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,

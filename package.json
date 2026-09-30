@@ -12,7 +12,8 @@
     "typecheck": "tsc -b && tsc -p tsconfig.api.json",
     "verify:access": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-access.ts",
     "verify:compaction": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-compaction.ts",
-    "verify:teams": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-teams.ts"
+    "verify:teams": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-teams.ts",
+    "verify:telemetry": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-telemetry.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

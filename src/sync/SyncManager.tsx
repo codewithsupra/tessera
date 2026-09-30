@@ -7,6 +7,7 @@ import { insforgePagesApi } from './insforgePagesApi'
 import { PagesSyncEngine, adoptLocalPages } from './pagesSync'
 import { uploadDirtyDocs } from './registry'
 import { useSyncStore } from './syncStore'
+import { toast } from '../components/toastStore'
 import { cachedWorkspaces, preferredWorkspace, refreshWorkspaces, switchWorkspace } from './workspaceActions'
 
 /**
@@ -51,9 +52,13 @@ export function SyncManager() {
 
     const onOnline = () => {
       useSyncStore.getState().setOnline(true)
+      toast.success('Back online — syncing your changes')
       void refreshWorkspaces(uid).catch(() => {})
     }
-    const onOffline = () => useSyncStore.getState().setOnline(false)
+    const onOffline = () => {
+      useSyncStore.getState().setOnline(false)
+      toast.info('You’re offline. Keep writing — changes are saved on this device.')
+    }
     const onFocus = () => void refreshWorkspaces(uid).catch(() => {})
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)

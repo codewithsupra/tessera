@@ -1,10 +1,19 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// `vite preview` serves the same security headers as production (single source: vercel.json),
+// so CSP problems show up locally and in E2E before they reach users.
+const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8')) as {
+  headers: { source: string; headers: { key: string; value: string }[] }[]
+}
+const siteHeaders = Object.fromEntries(vercel.headers.find((h) => h.source === '/(.*)')!.headers.map((h) => [h.key, h.value]))
+
 export default defineConfig({
+  preview: { headers: siteHeaders },
   plugins: [
     react(),
     tailwindcss(),

@@ -20,6 +20,8 @@ import {
 import { initials, colorFor } from '../sync/identity'
 import { refreshWorkspaces } from '../sync/workspaceActions'
 import { Modal } from './Modal'
+import { toast } from './toastStore'
+import { track } from '../lib/telemetry'
 import { fieldCls, primaryBtn, quietBtn } from './ui'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -145,6 +147,7 @@ function InviteForm({ workspace, onInvited }: { workspace: WorkspaceInfo; onInvi
     setCopied(false)
     try {
       const token = await createInvite(workspace.id, to, role)
+      track('invite_created', { role })
       const link = inviteUrl(token)
       const emailed = await emailInvite(to, workspace.name, user?.name ?? user?.email ?? 'A teammate', link)
       setResult({ link, email: to, emailed })
@@ -162,6 +165,7 @@ function InviteForm({ workspace, onInvited }: { workspace: WorkspaceInfo; onInvi
     try {
       await navigator.clipboard.writeText(result.link)
       setCopied(true)
+      toast.success('Invite link copied')
     } catch {
       setError('Couldn’t copy automatically — select the link and copy it.')
     }

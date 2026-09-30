@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { Logo } from '../components/Logo'
+import { track } from '../lib/telemetry'
 
 type Tile = {
   area: string
@@ -61,6 +63,7 @@ function Mosaic() {
 }
 
 export function Landing() {
+  useEffect(() => track('landing_viewed'), [])
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">

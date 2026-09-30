@@ -7,6 +7,8 @@ import { useSyncStore } from '../sync/syncStore'
 import { refreshWorkspaces, switchWorkspace } from '../sync/workspaceActions'
 import { MembersDialog } from './MembersDialog'
 import { Modal } from './Modal'
+import { toast } from './toastStore'
+import { track } from '../lib/telemetry'
 import { fieldCls, primaryBtn, quietBtn } from './ui'
 
 const ROLE_LABEL: Record<Role, string> = { owner: 'Owner', editor: 'Can edit', viewer: 'Can view' }
@@ -108,6 +110,8 @@ function CreateWorkspaceDialog({ open, onClose, onCreated }: { open: boolean; on
     setError(null)
     try {
       const id = await createWorkspace(name)
+      track('workspace_created')
+      toast.success(`Created ${name.trim()}`)
       await refreshWorkspaces(user!.id)
       setName('')
       onClose()
@@ -148,6 +152,7 @@ function LeaveDialog({ open, onClose, workspaceId, name }: { open: boolean; onCl
     setError(null)
     try {
       await removeMember(workspaceId, user!.id)
+      toast.info(`You left ${name}`)
       await refreshWorkspaces(user!.id) // falls back to Personal
       onClose()
       await navigate({ to: '/app' })

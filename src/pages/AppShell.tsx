@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { FilePlus2, Menu, X } from 'lucide-react'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { takeRememberedNext } from '../auth/next'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { Sidebar } from '../components/Sidebar'
+import { track } from '../lib/telemetry'
 import { SyncManager } from '../sync/SyncManager'
 import { db } from '../data/db'
 import { createPage, listPages } from '../data/pages'
@@ -81,6 +83,7 @@ export function AppHome() {
 
   async function newPage() {
     const page = await createPage(ws)
+    track('page_created', { from: 'home' })
     await navigate({ to: '/app/p/$pageId', params: { pageId: page.id } })
   }
 
@@ -196,5 +199,9 @@ const pageRouteApi = getRouteApi('/app/p/$pageId')
 
 export function PageRoute() {
   const { pageId } = pageRouteApi.useParams()
-  return <PageView key={pageId} pageId={pageId} />
+  return (
+    <ErrorBoundary key={pageId} label="page">
+      <PageView pageId={pageId} />
+    </ErrorBoundary>
+  )
 }

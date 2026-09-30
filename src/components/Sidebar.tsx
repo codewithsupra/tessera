@@ -9,6 +9,8 @@ import { useUiStore } from '../data/uiStore'
 import { useWorkspaceId } from '../data/workspace'
 import { summarizeStatus, useSyncStore } from '../sync/syncStore'
 import { Logo } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
+import { track } from '../lib/telemetry'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { canEdit } from '../data/workspaces'
 
@@ -25,6 +27,7 @@ export function Sidebar() {
 
   async function newPage(parentId: string | null = null) {
     const page = await createPage(ws, parentId)
+    track('page_created', { from: parentId ? 'subpage' : 'sidebar' })
     if (parentId) useUiStore.getState().expand(parentId)
     closeMobile()
     await navigate({ to: '/app/p/$pageId', params: { pageId: page.id } })
@@ -94,6 +97,7 @@ export function Sidebar() {
             ))}
           </ul>
         )}
+        <ThemeToggle />
         <button onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-ink-soft hover:bg-line/50 hover:text-ink" title={`Signed in as ${user?.email ?? ''}`}>
           <LogOut size={15} className="shrink-0" aria-hidden="true" />
           <span className="min-w-0">

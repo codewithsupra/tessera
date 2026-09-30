@@ -4,6 +4,7 @@ import { useAuth } from '../auth/context'
 import { withNext } from '../auth/next'
 import { Logo } from '../components/Logo'
 import { acceptInvite } from '../data/workspaces'
+import { track } from '../lib/telemetry'
 import { refreshWorkspaces, switchWorkspace } from '../sync/workspaceActions'
 
 const route = getRouteApi('/invite/$token')
@@ -21,6 +22,7 @@ export function InvitePage() {
     ;(async () => {
       try {
         const ws = await acceptInvite(token)
+        track('invite_accepted')
         await refreshWorkspaces(user.id)
         if (cancelled) return
         switchWorkspace(user.id, ws)

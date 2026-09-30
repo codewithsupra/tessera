@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { insforge } from '../lib/insforge'
 import { AuthContext, type AuthUser, type OAuthProvider } from './context'
 import { setDataScope } from '../data/scope'
+import { track } from '../lib/telemetry'
 import { rememberNext } from './next'
 import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
 
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
     setUser(toUser(data?.user as SdkUser))
+    track('signed_in', { method: 'password' })
     return { error: null }
   }, [setUser])
 
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message }
     if (!data?.accessToken) return { error: 'Check your email to confirm your account, then sign in.' }
     setUser(toUser(data.user as SdkUser))
+    track('signed_up', { method: 'password' })
     return { error: null }
   }, [setUser])
 
