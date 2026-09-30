@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { insforge } from '../lib/insforge'
+import { sdk } from '../lib/sdk'
 import { AuthContext, type AuthUser, type OAuthProvider } from './context'
 import { setDataScope } from '../data/scope'
 import { track } from '../lib/telemetry'
 import { isGuestEmail, newGuestCredentials, readGuest, writeGuest } from './guest'
 import { rememberNext } from './next'
-import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
+import { isUnreachable, mightHaveSession, readCachedUser, resolveSession, writeCachedUser } from './session'
 
 type SdkUser = { id: string; email: string; profile?: { name?: string } | null } | null | undefined
 
@@ -16,7 +16,8 @@ function toUser(u: SdkUser): AuthUser | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Nothing to restore on a device that has never signed in: render signed-out immediately.
+  const [loading, setLoading] = useState(() => mightHaveSession())
 
   // Storage is scoped before the user's data can render.
   const showUser = useCallback((u: AuthUser | null) => {
@@ -34,14 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    insforge.auth.getCurrentUser().then(async ({ data, error }) => {
+    // Visitors who have never signed in on this device skip the session check entirely:
+    // no network round-trip on the landing page, and no 401 from a refresh that can't succeed.
+    if (!mightHaveSession()) return
+    void (async () => {
+      const insforge = await sdk()
+      const { data, error } = await insforge.auth.getCurrentUser()
       if (cancelled) return
       const next = resolveSession({ user: toUser(data?.user as SdkUser), error }, readCachedUser())
       // Offline fallback keeps the cache; only a definitive server answer rewrites it.
       if (isUnreachable(error) && !data?.user) {
         showUser(next)
-      } else if (!next && readGuest()) {
-        // A guest's session lapsed: quietly sign back in to the same guest workspace.
+      } else if (!next && readGuest() && readCachedUser()?.email === readGuest()!.email) {
+        // A guest's session lapsed (they didn't sign out): quietly sign back in to the same workspace.
         const g = readGuest()!
         const res = await insforge.auth.signInWithPassword(g)
         if (cancelled) return
@@ -51,14 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(next)
       }
       setLoading(false)
-    })
+    })()
     return () => {
       cancelled = true
     }
   }, [setUser, showUser])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await insforge.auth.signInWithPassword({ email, password })
+    const { data, error } = await (await sdk()).auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
     setUser(toUser(data?.user as SdkUser))
     track('signed_in', { method: 'password' })
@@ -66,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setUser])
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
-    const { data, error } = await insforge.auth.signUp({ email, password, name })
+    const { data, error } = await (await sdk()).auth.signUp({ email, password, name })
     if (error) return { error: error.message }
     if (!data?.accessToken) return { error: 'Check your email to confirm your account, then sign in.' }
     setUser(toUser(data.user as SdkUser))
@@ -76,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithOAuth = useCallback(async (provider: OAuthProvider, next = '/app') => {
     rememberNext(next)
-    const { error } = await insforge.auth.signInWithOAuth(provider, {
+    const { error } = await (await sdk()).auth.signInWithOAuth(provider, {
       redirectTo: `${window.location.origin}/app`,
     })
     return { error: error ? error.message : null }
@@ -85,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const startGuest = useCallback(async () => {
     const existing = readGuest()
     if (existing) {
-      const res = await insforge.auth.signInWithPassword(existing)
+      const res = await (await sdk()).auth.signInWithPassword(existing)
       if (!res.error) {
         setUser(toUser(res.data?.user as SdkUser))
         return { error: null }
@@ -93,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeGuest(null) // expired and cleaned up; start a fresh guest
     }
     const g = newGuestCredentials()
-    const { data, error } = await insforge.auth.signUp({ ...g, name: 'Guest' })
+    const { data, error } = await (await sdk()).auth.signUp({ ...g, name: 'Guest' })
     if (error) return { error: error.message }
     if (!data?.accessToken) return { error: 'Guest workspaces are unavailable right now. Please sign up instead.' }
     writeGuest(g)
@@ -103,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setUser])
 
   const signOut = useCallback(async () => {
-    await insforge.auth.signOut()
+    await (await sdk()).auth.signOut()
     setUser(null)
   }, [setUser])
 

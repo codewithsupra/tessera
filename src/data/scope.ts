@@ -1,8 +1,9 @@
-import { scopeDb } from './db'
-import { scopeDocs } from './docs'
+import { setScopeUser } from './scopeName'
 
-/** Points all on-device storage at one user's databases. Call before rendering their data. */
+/**
+ * Points all on-device storage at one user's databases. Call before rendering their data.
+ * Cheap to import: storage modules follow the scope when (and if) they load.
+ */
 export function setDataScope(userId: string | null): void {
-  scopeDb(userId)
-  scopeDocs(userId)
+  setScopeUser(userId)
 }

@@ -156,6 +156,10 @@ export class DocSync {
       server.destroy()
       // `missing` is computed against the server's actual state, so it covers anything dropped earlier.
       this.unconfirmed = false
+      // Peers may have dropped our cursor while we were away; re-announce it now rather than
+      // waiting for the 15s awareness heartbeat.
+      const me = this.awareness.getLocalState()
+      if (me) this.awareness.setLocalState(me)
       if (state.updates.length >= (this.opts.compactThreshold ?? 200)) this.t.requestCompaction(this.pageId)
       if (serverLacksSomething && !this.readOnly) {
         this.queue.push(missing)

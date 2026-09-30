@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /invite/
+Disallow: /save
+Sitemap: https://tessera-notes.vercel.app/sitemap.xml

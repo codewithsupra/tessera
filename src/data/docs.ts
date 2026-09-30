@@ -1,5 +1,6 @@
 import { IndexeddbPersistence } from 'y-indexeddb'
 import * as Y from 'yjs'
+import { getScopeUser, setScopeUser } from './scopeName'
 
 /**
  * Each page is one Y.Doc persisted to IndexedDB, so it opens instantly and works offline.
@@ -11,14 +12,15 @@ type Entry = { doc: Y.Doc; persistence: IndexeddbPersistence; ready: Promise<voi
 
 const open = new Map<string, Entry>()
 
-let docPrefix = 'tessera-doc-'
-
-/** Per-user document databases, matching scopeDb(). */
+/** Per-user document databases, matching the page index (see scopeName.ts). */
 export function scopeDocs(userId: string | null): void {
-  docPrefix = userId ? `tessera-doc-${userId}-` : 'tessera-doc-'
+  setScopeUser(userId)
 }
 
-export const docName = (pageId: string) => `${docPrefix}${pageId}`
+export const docName = (pageId: string) => {
+  const user = getScopeUser()
+  return user ? `tessera-doc-${user}-${pageId}` : `tessera-doc-${pageId}`
+}
 
 export type DocHandle = { doc: Y.Doc; ready: Promise<void>; release: () => void }
 

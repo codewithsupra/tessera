@@ -17,6 +17,19 @@ export class FakeServer {
   dropFor = new Map<string, number>()
   /** Announce updates by id only (like y-fetch for large payloads). */
   announceByIdOnly = false
+  /** Simulated network delay for broadcasts (the landing-page demo's lag slider). */
+  latencyMs = 0
+  /** Called after every durable append (the demo's activity log). */
+  onAppend: ((pageId: string, from: string) => void) | null = null
+
+  setLatency(ms: number) {
+    this.latencyMs = Math.max(0, ms)
+  }
+
+  private deliver(fn: () => void) {
+    if (this.latencyMs > 0) setTimeout(fn, this.latencyMs)
+    else queueMicrotask(fn)
+  }
 
   client(name: string): FakeClient {
     return new FakeClient(this, name)
@@ -26,7 +39,7 @@ export class FakeServer {
     return { snapshot: this.snapshots.get(pageId) ?? null, updates: [...(this.updates.get(pageId) ?? [])] }
   }
 
-  append(pageId: string, data: string): { id: number } {
+  append(pageId: string, data: string, from = ''): { id: number } {
     if (!this.pages.has(pageId)) throw new TransportError('page not found', 'missing-page')
     const row = { id: this.nextId++, data }
     this.updates.set(pageId, [...(this.updates.get(pageId) ?? []), row])
@@ -39,8 +52,9 @@ export class FakeServer {
         continue
       }
       const msg = this.announceByIdOnly ? { id: row.id } : row
-      queueMicrotask(() => s.events.onUpdate(msg))
+      this.deliver(() => s.events.onUpdate(msg))
     }
+    this.onAppend?.(pageId, from)
     return { id: row.id }
   }
 
@@ -54,7 +68,7 @@ export class FakeServer {
 
   broadcastAwareness(pageId: string, from: FakeClient, data: string) {
     for (const s of this.subs.get(pageId) ?? []) {
-      if (s.client !== from && s.client.online) queueMicrotask(() => s.events.onAwareness(data))
+      if (s.client !== from && s.client.online) this.deliver(() => s.events.onAwareness(data))
     }
   }
 
@@ -80,6 +94,10 @@ export class FakeClient implements DocTransport {
     this.name = name
   }
 
+  setOnline(online: boolean) {
+    this.online = online
+  }
+
   private guard() {
     if (!this.online) throw new TransportError('offline', 'offline')
   }
@@ -94,7 +112,7 @@ export class FakeClient implements DocTransport {
   }
   async append(pageId: string, data: string) {
     this.guard()
-    return this.server.append(pageId, data)
+    return this.server.append(pageId, data, this.name)
   }
   async subscribe(pageId: string, events: DocEvents) {
     this.guard()

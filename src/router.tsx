@@ -1,9 +1,7 @@
 import { Outlet, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { PublicOnly, RequireAuth } from './auth/guards'
 import { AuthPage } from './pages/AuthPage'
-import { LazyAppHome, LazyAppLayout, LazyPageRoute } from './pages/lazyApp'
-import { InvitePage } from './pages/InvitePage'
-import { SavePage } from './pages/SavePage'
+import { LazyAppHome, LazyAppLayout, LazyEngineering, LazyInvite, LazyPageRoute, LazySave } from './pages/lazyApp'
 import { Landing } from './pages/Landing'
 import { NotFound } from './pages/NotFound'
 
@@ -29,8 +27,9 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/', component: () => <PublicOnly><Landing /></PublicOnly> }),
   createRoute({ getParentRoute: () => rootRoute, path: '/signin', component: () => <PublicOnly><AuthPage mode="signin" /></PublicOnly> }),
   createRoute({ getParentRoute: () => rootRoute, path: '/signup', component: () => <PublicOnly><AuthPage mode="signup" /></PublicOnly> }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/invite/$token', component: InvitePage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/save', component: () => <RequireAuth><SavePage /></RequireAuth> }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/invite/$token', component: LazyInvite }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/engineering', component: LazyEngineering }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/save', component: () => <RequireAuth><LazySave /></RequireAuth> }),
   appRoute.addChildren([createRoute({ getParentRoute: () => appRoute, path: '/', component: LazyAppHome }), pageRoute]),
 ])
 

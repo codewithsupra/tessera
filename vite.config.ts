@@ -19,6 +19,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Tessera',
@@ -40,7 +41,7 @@ export default defineConfig({
         // The whole app shell is precached so /app opens with no network.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Non-Latin font subsets are fetched only when a page uses those scripts; cache them on demand.
-        globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
+        globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2', '**/og.png'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.endsWith('.woff2'),

@@ -90,6 +90,18 @@ describe('DocSync', () => {
     expect(a.statuses.at(-1)).toBe('synced')
   })
 
+  it('still converges with simulated network latency', async () => {
+    server.latencyMs = 40
+    const a = await peer(server, 'a')
+    const b = await peer(server, 'b')
+    type(a, 0, 'slow ')
+    type(b, 0, 'network ')
+    await settle(200)
+    expect(text(a)).toBe(text(b))
+    expect(text(a)).toContain('slow')
+    expect(text(a)).toContain('network')
+  })
+
   it('does not echo remote updates back to the server', async () => {
     const a = await peer(server, 'a')
     await peer(server, 'b')
@@ -280,6 +292,20 @@ describe('DocSync', () => {
     expect(doc.getText('t').toString()).toContain('from the editor')
     expect(sync.status).toBe('synced')
     await sync.destroy()
+  })
+
+  it('re-announces presence right after reconnecting', async () => {
+    const a = await peer(server, 'a')
+    const b = await peer(server, 'b')
+    a.client.online = false
+    a.sync.awareness.setLocalStateField('user', { name: 'Ada', id: 'u-ada' }) // not delivered: offline
+    await settle()
+    const names = () => [...b.sync.awareness.getStates().values()].map((s) => (s.user as { name?: string } | undefined)?.name)
+    expect(names()).not.toContain('Ada')
+    a.client.online = true
+    await a.sync.resync()
+    await settle()
+    expect(names()).toContain('Ada')
   })
 
   it('flushes pending edits when destroyed', async () => {

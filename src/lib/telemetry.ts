@@ -1,4 +1,4 @@
-import { insforge } from './insforge'
+import { sdk } from './sdk'
 
 /**
  * First-party product analytics and error reports. No third-party trackers.
@@ -26,10 +26,10 @@ type Sender = {
 
 const defaultSender: Sender = {
   events: async (rows) => {
-    await insforge.database.from('app_events').insert(rows)
+    await (await sdk()).database.from('app_events').insert(rows)
   },
   error: async (row) => {
-    await insforge.database.from('client_errors').insert([row])
+    await (await sdk()).database.from('client_errors').insert([row])
   },
 }
 

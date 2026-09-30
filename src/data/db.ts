@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { PageRow } from './tree'
+import { getScopeUser, onScopeChange, setScopeUser } from './scopeName'
 
 /**
  * Local index of pages. Page *content* lives in per-page Yjs docs (see docs.ts);
@@ -36,11 +37,18 @@ const nameFor = (userId: string | null) => (userId ? `tessera-${userId}` : 'tess
  * accounts never mixes (or purges) another person's offline data. A live binding: importers
  * always see the current one.
  */
-export let db = new TesseraDB(nameFor(null))
+export let db = new TesseraDB(nameFor(getScopeUser()))
 
-export function scopeDb(userId: string | null): void {
+function reopen(userId: string | null) {
   const name = nameFor(userId)
   if (db.name === name) return
   db.close()
   db = new TesseraDB(name)
+}
+onScopeChange(reopen)
+
+/** Switches the active user's database (tests and the storage scope). */
+export function scopeDb(userId: string | null): void {
+  setScopeUser(userId)
+  reopen(userId)
 }

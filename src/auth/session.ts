@@ -24,6 +24,15 @@ export function resolveSession(check: SessionCheck, cached: AuthUser | null): Au
   return null
 }
 
+/**
+ * True if someone is signed in on this device (the last known user, cleared on sign-out) or
+ * we're returning from an OAuth provider. Everyone else skips the session check entirely:
+ * no round-trip on the landing page and no 401 from a refresh that can't succeed.
+ */
+export function mightHaveSession(search = typeof location === 'undefined' ? '' : location.search): boolean {
+  return !!readCachedUser() || new URLSearchParams(search).has('insforge_code')
+}
+
 export function readCachedUser(): AuthUser | null {
   try {
     const raw = localStorage.getItem(KEY)

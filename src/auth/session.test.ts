@@ -1,4 +1,4 @@
-import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
+import { isUnreachable, mightHaveSession, readCachedUser, resolveSession, writeCachedUser } from './session'
 
 const ada = { id: 'u1', email: 'ada@example.com', name: 'Ada' }
 const bob = { id: 'u2', email: 'bob@example.com' }
@@ -45,5 +45,19 @@ describe('cached user', () => {
     expect(readCachedUser()).toBeNull()
     localStorage.setItem('tessera:last-user', '{"id":1}')
     expect(readCachedUser()).toBeNull()
+  })
+})
+
+describe('mightHaveSession', () => {
+  beforeEach(() => localStorage.clear())
+  it('is false for a first-time visitor and true once something is remembered', () => {
+    expect(mightHaveSession('')).toBe(false)
+    expect(mightHaveSession('?insforge_code=abc')).toBe(true)
+    writeCachedUser({ id: 'u1', email: 'a@b.co' })
+    expect(mightHaveSession('')).toBe(true)
+    // Signing out clears the remembered user, so a signed-out guest isn't pulled back in.
+    writeCachedUser(null)
+    localStorage.setItem('tessera:guest', '{}')
+    expect(mightHaveSession('')).toBe(false)
   })
 })

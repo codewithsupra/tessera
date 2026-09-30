@@ -18,3 +18,17 @@ export function LazyAppHome() {
 export function LazyPageRoute() {
   return <Suspense fallback={null}><Page /></Suspense>
 }
+
+const Engineering = lazy(() => import('./Engineering').then((m) => ({ default: m.Engineering })))
+export function LazyEngineering() {
+  return <Suspense fallback={blank}><Engineering /></Suspense>
+}
+
+const Invite = lazy(() => import('./InvitePage').then((m) => ({ default: m.InvitePage })))
+const Save = lazy(() => import('./SavePage').then((m) => ({ default: m.SavePage })))
+export function LazyInvite() {
+  return <Suspense fallback={blank}><Invite /></Suspense>
+}
+export function LazySave() {
+  return <Suspense fallback={blank}><Save /></Suspense>
+}
