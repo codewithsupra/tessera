@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Check, ChevronsUpDown, LogOut, Plus, Users } from 'lucide-react'
+import { Check, ChevronsUpDown, Download, LogOut, Plus, Users } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/context'
 import { createWorkspace, removeMember, type Role } from '../data/workspaces'
+import { runWorkspaceExport } from '../export/actions'
 import { useSyncStore } from '../sync/syncStore'
 import { refreshWorkspaces, switchWorkspace } from '../sync/workspaceActions'
 import { MembersDialog } from './MembersDialog'
@@ -75,6 +76,11 @@ export function WorkspaceSwitcher() {
           {active && !active.isPersonal && (
             <button role="menuitem" onClick={() => (setOpen(false), setDialog('members'))} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-plaster-deep">
               <Users size={14} aria-hidden="true" /> {role === 'owner' ? 'Members & invites' : 'Members'}
+            </button>
+          )}
+          {active && (
+            <button role="menuitem" onClick={() => (setOpen(false), void runWorkspaceExport(active.id, active.name))} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-plaster-deep">
+              <Download size={14} aria-hidden="true" /> Export as Markdown
             </button>
           )}
           <button role="menuitem" onClick={() => (setOpen(false), setDialog('create'))} className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-plaster-deep">

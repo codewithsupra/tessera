@@ -1,6 +1,7 @@
 import type * as Y from 'yjs'
 import { db } from '../data/db'
 import { openDoc } from '../data/docs'
+import { touchPage } from '../data/pages'
 import { DocSync } from './DocSync'
 import { insforgeTransport } from './insforgeTransport'
 import { useSyncStore } from './syncStore'
@@ -40,7 +41,10 @@ export function acquireSync(pageId: string, opts: { readOnly?: boolean } = {}): 
         pageId,
         doc: handle.doc,
         onStatus: (s) => useSyncStore.getState().setDoc(pageId, s),
-        onDirtyChange: (d) => void db.pages.update(pageId, { docDirty: d ? 1 : 0 }),
+        onDirtyChange: (d) => {
+          void db.pages.update(pageId, { docDirty: d ? 1 : 0 })
+          if (d && !sync.readOnly) void touchPage(pageId)
+        },
       })
       // Set before start(): a viewer's sync must never send, not even during the first reconcile.
       sync.setReadOnly(!!opts.readOnly)

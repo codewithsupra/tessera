@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { db } from './db'
-import { createPage, listPages, nextEditTime, restorePage, setPageTitle, trashPage } from './pages'
+import { TOUCH_INTERVAL_MS, createPage, listPages, nextEditTime, restorePage, setPageTitle, touchPage, trashPage } from './pages'
 
 beforeEach(async () => {
   await db.pages.clear()
@@ -94,5 +94,21 @@ describe('per-user database', () => {
     mod.scopeDb('alice')
     expect(await mod.db.pages.count()).toBe(1)
     mod.scopeDb(null)
+  })
+})
+
+describe('touchPage', () => {
+  it('bumps the edit time on content edits, at most once a minute per page', async () => {
+    await db.pages.clear()
+    const p = await createPage('w1')
+    await db.pages.update(p.id, { dirty: 0 })
+    const t0 = Date.now() + 1_000_000
+    expect(await touchPage(p.id, t0)).toBe(true)
+    const after = await db.pages.get(p.id)
+    expect(after!.updatedAt).toBeGreaterThan(p.updatedAt)
+    expect(after!.dirty).toBe(1)
+    expect(await touchPage(p.id, t0 + 5_000)).toBe(false)
+    expect(await touchPage(p.id, t0 + TOUCH_INTERVAL_MS)).toBe(true)
+    expect(await touchPage('missing', t0)).toBe(false)
   })
 })

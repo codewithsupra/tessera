@@ -80,3 +80,21 @@ export async function restorePage(id: string): Promise<void> {
   })
   onLocalChange()
 }
+
+const lastTouch = new Map<string, number>()
+export const TOUCH_INTERVAL_MS = 60_000
+
+/**
+ * Marks a page as edited because its *content* changed, so "recently edited" and exported
+ * `updated` dates reflect body edits. Throttled per page: typing doesn't flood metadata sync.
+ */
+export async function touchPage(id: string, now = Date.now()): Promise<boolean> {
+  const last = lastTouch.get(id) ?? 0
+  if (now - last < TOUCH_INTERVAL_MS) return false
+  lastTouch.set(id, now)
+  const page = await db.pages.get(id)
+  if (!page) return false
+  await db.pages.update(id, { updatedAt: nextEditTime(page.updatedAt), dirty: 1 })
+  onLocalChange()
+  return true
+}

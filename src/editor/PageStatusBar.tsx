@@ -1,4 +1,5 @@
-import { Check, CloudOff, Loader2, TriangleAlert } from 'lucide-react'
+import { Check, CloudOff, Download, Loader2, TriangleAlert } from 'lucide-react'
+import { runPageExport } from '../export/actions'
 import { useEffect, useState } from 'react'
 import type { DocSync } from '../sync/DocSync'
 import { initials } from '../sync/identity'
@@ -46,6 +47,9 @@ export function PageStatusBar({ pageId, sync, selfId, readOnly }: { pageId: stri
         </ul>
       )}
       {readOnly && <span className="rounded-full border border-line px-2 py-0.5 text-ink-soft">View only</span>}
+      <button onClick={() => void runPageExport(pageId)} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-ink-faint hover:bg-plaster-deep hover:text-ink" title="Download this page as Markdown">
+        <Download size={13} aria-hidden="true" /> Export
+      </button>
       <span className={`flex items-center gap-1 ${cls}`} role="status" aria-live="polite">
         <Icon size={13} className={status === 'saving' ? 'animate-spin' : ''} aria-hidden="true" />
         {text}
