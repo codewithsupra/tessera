@@ -1,0 +1,32 @@
+[auth]
+allowed_redirect_urls = ["http://localhost:5173", "http://localhost:5180", "http://localhost:4173", "https://tessera-notes.vercel.app"]
+require_email_verification = false
+verify_email_method = "code"
+reset_password_method = "code"
+disable_signup = false
+
+[auth.password]
+min_length = 8
+require_number = false
+require_lowercase = false
+require_uppercase = false
+require_special_char = false
+
+[auth.smtp]
+enabled = false
+host = ""
+port = 465
+username = ""
+sender_email = ""
+sender_name = ""
+min_interval_seconds = 60
+
+[storage]
+max_file_size_mb = 50
+
+# Yjs updates are relayed via realtime and persisted in our own tables; keep relay log short.
+[realtime]
+retention_days = 1
+
+[schedules]
+retention_days = 7

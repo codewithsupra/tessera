@@ -1,32 +1,19 @@
-# React + TypeScript + Vite
+# Tessera
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A local-first, multiplayer knowledge workspace — Obsidian's speed and data ownership, Notion's live collaboration and databases.
 
-Currently, two official plugins are available:
+- **Local-first:** every page is a Yjs CRDT stored on your device (IndexedDB); opens instantly, works offline.
+- **Multiplayer:** a custom Yjs provider syncs over InsForge realtime with chunking + gap recovery ([spike notes](docs/spike-m0-sync.md)).
+- **Yours:** export everything as plain Markdown with frontmatter.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Stack: React 19 · Vite · TipTap · Yjs · Tailwind v4 · InsForge (auth, Postgres + RLS, realtime, functions, pgvector) · Vercel.
 
-## React Compiler
+## Develop
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
+npm test
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Needs `.env.local` with `VITE_INSFORGE_URL` and `VITE_INSFORGE_ANON_KEY`.
