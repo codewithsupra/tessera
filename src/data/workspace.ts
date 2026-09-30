@@ -1,12 +1,14 @@
 import { useAuth } from '../auth/context'
+import { useSyncStore } from '../sync/syncStore'
 
-/** Until cloud workspaces arrive (M4), each user gets one personal, on-device workspace. */
+/** The on-device workspace used before the cloud workspace is known (first launch offline). */
 export function localWorkspaceId(userId: string): string {
   return `local:${userId}`
 }
 
 export function useWorkspaceId(): string {
   const { user } = useAuth()
+  const cloud = useSyncStore((s) => s.workspaceId)
   if (!user) throw new Error('useWorkspaceId requires a signed-in user')
-  return localWorkspaceId(user.id)
+  return cloud ?? localWorkspaceId(user.id)
 }

@@ -1,9 +1,17 @@
 import 'fake-indexeddb/auto'
 import { db } from './db'
-import { createPage, listPages, restorePage, setPageTitle, trashPage } from './pages'
+import { createPage, listPages, nextEditTime, restorePage, setPageTitle, trashPage } from './pages'
 
 beforeEach(async () => {
   await db.pages.clear()
+})
+
+describe('nextEditTime', () => {
+  it('never goes backwards or repeats', () => {
+    const future = Date.now() + 60_000
+    expect(nextEditTime(future)).toBe(future + 1)
+    expect(nextEditTime(0)).toBeGreaterThan(0)
+  })
 })
 
 describe('pages store', () => {
@@ -26,6 +34,14 @@ describe('pages store', () => {
     expect(after!.updatedAt).toBeGreaterThan(p.updatedAt)
     await setPageTitle(p.id, 'Launch plan')
     expect((await db.pages.get(p.id))?.updatedAt).toBe(after!.updatedAt)
+  })
+
+  it('keeps edit times strictly increasing within one millisecond', async () => {
+    const p = await createPage('w1')
+    await setPageTitle(p.id, 'a')
+    await setPageTitle(p.id, 'b')
+    await setPageTitle(p.id, 'c')
+    expect((await db.pages.get(p.id))!.updatedAt).toBeGreaterThanOrEqual(p.updatedAt + 3)
   })
 
   it('trashes a page with its subtree and restores it', async () => {

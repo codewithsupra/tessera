@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { FilePlus2, Menu, X } from 'lucide-react'
 import { Suspense, lazy, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
+import { SyncManager } from '../sync/SyncManager'
 import { db } from '../data/db'
 import { createPage, listPages } from '../data/pages'
 import { displayTitle } from '../data/tree'
@@ -25,6 +26,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-dvh">
+      <SyncManager />
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-line md:block">
         <Sidebar />
       </aside>

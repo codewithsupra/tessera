@@ -9,6 +9,10 @@ export type PageRow = {
   createdAt: number
   updatedAt: number
   deletedAt: number | null
+  /** 1 = metadata changed locally and not yet confirmed by the server. */
+  dirty?: 0 | 1
+  /** 1 = document content has local edits the server may not have. */
+  docDirty?: 0 | 1
 }
 
 export type TreeNode = PageRow & { children: TreeNode[] }

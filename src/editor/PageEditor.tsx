@@ -1,4 +1,5 @@
 import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import DragHandle from '@tiptap/extension-drag-handle-react'
 import Highlight from '@tiptap/extension-highlight'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
@@ -8,31 +9,40 @@ import StarterKit from '@tiptap/starter-kit'
 import { GripVertical } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type * as Y from 'yjs'
-import { applyTextDiff, openDoc } from '../data/docs'
+import { useAuth } from '../auth/context'
+import { applyTextDiff } from '../data/docs'
 import { setPageTitle } from '../data/pages'
+import type { DocSync } from '../sync/DocSync'
+import { colorFor } from '../sync/identity'
+import { acquireSync } from '../sync/registry'
+import { PageStatusBar } from './PageStatusBar'
 import { SlashExtension } from './SlashExtension'
 import { SlashMenu } from './SlashMenu'
 
-/** Opens the page's local Y.Doc, waits for IndexedDB, then mounts the editor. */
+/** Opens the page's local Y.Doc (instant), starts cloud sync in the background, mounts the editor. */
 export function PageEditor({ pageId }: { pageId: string }) {
-  const [doc, setDoc] = useState<Y.Doc | null>(null)
+  const [state, setState] = useState<{ doc: Y.Doc; sync: DocSync } | null>(null)
 
   useEffect(() => {
-    const handle = openDoc(pageId)
+    const handle = acquireSync(pageId)
     let alive = true
-    void handle.ready.then(() => alive && setDoc(handle.doc))
+    void handle.localReady.then((sync) => alive && setState({ doc: handle.doc, sync }))
     return () => {
       alive = false
-      setDoc(null)
-      handle.release()
+      setState(null)
+      void handle.release()
     }
   }, [pageId])
 
-  if (!doc) return <div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />
-  return <LoadedEditor key={pageId} pageId={pageId} doc={doc} />
+  if (!state) return <div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />
+  return <LoadedEditor key={pageId} pageId={pageId} doc={state.doc} sync={state.sync} />
 }
 
-function LoadedEditor({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
+function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync: DocSync }) {
+  const { user } = useAuth()
+  const name = user?.name ?? user?.email ?? 'Someone'
+  const color = colorFor(user?.id ?? 'anon')
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true } }),
@@ -43,14 +53,18 @@ function LoadedEditor({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : "Write, or type '/' for blocks"),
       }),
       Collaboration.configure({ document: doc, field: 'content' }),
+      CollaborationCaret.configure({ provider: sync, user: { name, color, id: user?.id } }),
       SlashExtension,
     ],
     editorProps: { attributes: { class: 'tessera-prose', 'aria-label': 'Page content' } },
   })
 
   return (
-    <article className="mx-auto w-full max-w-[720px] px-5 pb-40 pt-16 sm:px-12">
-      <TitleField pageId={pageId} doc={doc} editor={editor} />
+    <article className="mx-auto w-full max-w-[720px] px-5 pb-40 pt-6 sm:px-12">
+      <PageStatusBar pageId={pageId} sync={sync} selfId={user?.id} />
+      <div className="pt-8">
+        <TitleField pageId={pageId} doc={doc} editor={editor} />
+      </div>
       {editor && (
         <DragHandle editor={editor}>
           <span className="flex h-6 w-5 cursor-grab items-center justify-center rounded text-ink-faint hover:bg-plaster-deep" aria-label="Drag to move block">

@@ -7,6 +7,7 @@ import { createPage, listPages, restorePage, trashPage } from '../data/pages'
 import { buildTree, descendantIds, displayTitle, trashRoots, type PageRow, type TreeNode } from '../data/tree'
 import { useUiStore } from '../data/uiStore'
 import { useWorkspaceId } from '../data/workspace'
+import { summarizeStatus, useSyncStore } from '../sync/syncStore'
 import { Logo } from './Logo'
 
 const iconBtn = 'flex h-6 w-6 items-center justify-center rounded text-ink-faint hover:bg-line/60 hover:text-ink'
@@ -41,7 +42,7 @@ export function Sidebar() {
           <Logo size={24} />
         </Link>
         <p className="mt-5 truncate text-sm font-medium text-ink">{user?.name ?? user?.email}</p>
-        <p className="truncate text-xs text-ink-faint">Personal workspace · on this device</p>
+        <WorkspaceSyncLabel />
       </div>
 
       <button
@@ -138,5 +139,18 @@ function TreeRow({ node, depth, rows, onAdd }: { node: TreeNode; depth: number; 
         </ul>
       )}
     </li>
+  )
+}
+
+function WorkspaceSyncLabel() {
+  const online = useSyncStore((s) => s.online)
+  const pages = useSyncStore((s) => s.pages)
+  const status = summarizeStatus(online, pages)
+  const text = { synced: 'Synced', saving: 'Syncing…', offline: 'Offline · changes kept on this device', error: 'Sync paused' }[status]
+  return (
+    <p className="flex items-center gap-1.5 truncate text-xs text-ink-faint">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status === 'synced' ? 'bg-verdigris' : status === 'offline' ? 'bg-gold' : 'bg-ink-faint'}`} aria-hidden="true" />
+      Personal · {text}
+    </p>
   )
 }
