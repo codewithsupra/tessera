@@ -11,7 +11,7 @@ if (!pageId) throw new Error('usage: remote-device.ts <pageId> [listenSeconds]')
 const b64 = (u: Uint8Array) => Buffer.from(u).toString('base64')
 const unb64 = (s: string) => new Uint8Array(Buffer.from(s, 'base64'))
 
-const plain = (frag: Y.XmlFragment) =>
+const plain = (frag: Y.XmlFragment): string =>
   frag
     .toArray()
     .map((n) => (n instanceof Y.XmlElement ? n.toArray().map((c) => (c instanceof Y.XmlText ? c.toString() : plain(c as Y.XmlFragment))).join('') : String(n)))

@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck, lint, unit tests, build
+    runs-on: ubuntu-latest
+    env:
+      # The public anon key and URL are baked into the client bundle; placeholders are enough to build.
+      VITE_INSFORGE_URL: ${{ secrets.VITE_INSFORGE_URL || 'https://example.insforge.app' }}
+      VITE_INSFORGE_ANON_KEY: ${{ secrets.VITE_INSFORGE_ANON_KEY || 'ci-placeholder' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  live:
+    name: End-to-end (Playwright) and live backend suites
+    needs: quality
+    runs-on: ubuntu-latest
+    # Runs against the real InsForge backend; never for forks, which can't read the secrets.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      CI: true
+      VITE_INSFORGE_URL: ${{ secrets.VITE_INSFORGE_URL }}
+      VITE_INSFORGE_ANON_KEY: ${{ secrets.VITE_INSFORGE_ANON_KEY }}
+      INSFORGE_API_KEY: ${{ secrets.INSFORGE_API_KEY }}
+      JANITOR_SECRET: ${{ secrets.JANITOR_SECRET }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_STRANGER_EMAIL: ${{ secrets.E2E_STRANGER_EMAIL }}
+      E2E_STRANGER_PASSWORD: ${{ secrets.E2E_STRANGER_PASSWORD }}
+    steps:
+      - name: Check backend secrets
+        id: secrets
+        run: |
+          missing=""
+          for v in VITE_INSFORGE_URL VITE_INSFORGE_ANON_KEY INSFORGE_API_KEY JANITOR_SECRET E2E_EMAIL E2E_PASSWORD E2E_STRANGER_EMAIL E2E_STRANGER_PASSWORD; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice title=Live tests skipped::Repository secrets not set:$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Playwright
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run test:e2e
+      - name: Live backend suites (RLS, teams, guests, telemetry, metrics)
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          npm run verify:access
+          npm run verify:teams
+          npm run verify:guests
+          npm run verify:telemetry
+          npm run verify:metrics
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.secrets.outputs.ready == 'true'
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

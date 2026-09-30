@@ -4,7 +4,7 @@
  * Temporarily allow-lists the E2E owner as an admin (via the CLI, as project admin) and removes it after.
  */
 import { createClient } from '@insforge/sdk'
-import { execFileSync } from 'node:child_process'
+import { sql } from './admin'
 
 const baseUrl = process.env.VITE_INSFORGE_URL!
 const anonKey = process.env.VITE_INSFORGE_ANON_KEY!
@@ -15,7 +15,6 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
 }
-const sql = (q: string) => execFileSync('npx', ['-y', '@insforge/cli', 'db', 'query', q], { stdio: 'pipe' }).toString()
 
 async function signIn(email: string, password: string) {
   const c = createClient({ baseUrl, anonKey })
@@ -59,7 +58,7 @@ async function main() {
 
   // Admin read (temporarily allow-list the owner)
   const ownerEmail = process.env.E2E_EMAIL!.toLowerCase()
-  sql(`insert into app_admins(email) values ('${ownerEmail}') on conflict do nothing`)
+  await sql(`insert into app_admins(email) values ('${ownerEmail}') on conflict do nothing`)
   try {
     const admin = await owner.database.from('app_events').select('name, user_id, props').eq('props->>marker', marker)
     const mine = admin.data?.find((r) => r.name === 'page_created')
@@ -75,9 +74,9 @@ async function main() {
     const adminList = await other.database.from('app_admins').select('email')
     check('the admin list is private', adminList.data?.length === 0)
   } finally {
-    sql(`delete from app_admins where email = '${ownerEmail}'`)
-    sql(`delete from app_events where props->>'marker' = '${marker}'`)
-    sql(`delete from client_errors where message like '${marker}%'`)
+    await sql(`delete from app_admins where email = '${ownerEmail}'`)
+    await sql(`delete from app_events where props->>'marker' = '${marker}'`)
+    await sql(`delete from client_errors where message like '${marker}%'`)
   }
 
   console.log(`\n${total - failed}/${total} passed`)

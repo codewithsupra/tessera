@@ -4,8 +4,8 @@
  * Uses two real test accounts (owner + stranger) and anonymous access. Exits non-zero on any failure.
  */
 import { createClient } from '@insforge/sdk'
+import { adminKey } from './admin'
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 
 const baseUrl = process.env.VITE_INSFORGE_URL!
 const anonKey = process.env.VITE_INSFORGE_ANON_KEY!
@@ -31,7 +31,7 @@ async function signedIn(email: string, password: string): Promise<Client> {
 }
 
 async function deleteUsers(ids: string[]) {
-  const apiKey = JSON.parse(readFileSync('.insforge/project.json', 'utf8')).api_key as string
+  const apiKey = adminKey()
   await fetch(`${baseUrl}/api/auth/users`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -119,13 +119,13 @@ async function main() {
   // Realtime: owner subscribes and receives durable updates; stranger cannot subscribe
   await owner.realtime.connect()
   const sub = await owner.realtime.subscribe(`doc:${pageId}`)
-  check('owner can subscribe to the doc channel', sub.ok, sub.error?.message)
+  check('owner can subscribe to the doc channel', sub.ok, sub.ok ? undefined : sub.error.message)
   const wsSub = await owner.realtime.subscribe(`ws:${wsId}`)
-  check('owner can subscribe to the workspace channel', wsSub.ok, wsSub.error?.message)
+  check('owner can subscribe to the workspace channel', wsSub.ok, wsSub.ok ? undefined : wsSub.error.message)
 
   await stranger.realtime.connect()
   const strangerSub = await stranger.realtime.subscribe(`doc:${pageId}`)
-  check('stranger cannot subscribe to the doc channel', !strangerSub.ok, strangerSub.error?.message)
+  check('stranger cannot subscribe to the doc channel', !strangerSub.ok, strangerSub.ok ? undefined : strangerSub.error.message)
   const strangerWsSub = await stranger.realtime.subscribe(`ws:${wsId}`)
   check('stranger cannot subscribe to the workspace channel', !strangerWsSub.ok)
   const junkSub = await owner.realtime.subscribe('doc:not-a-uuid')

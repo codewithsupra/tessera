@@ -122,6 +122,10 @@ const BUGS: [string, string][] = [
     'Two accounts on one laptop could purge each other’s offline data.',
     'All local data lived in one IndexedDB database. Each account now gets its own, and signing out reloads the app.',
   ],
+  [
+    'A laptop opened offline never synced again.',
+    'The end-to-end suite found it: with no network at startup the session token was never refreshed, so after reconnecting every request was rejected. Session restore now retries when the browser comes back online.',
+  ],
 ]
 
 export function Engineering() {

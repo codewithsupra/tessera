@@ -3,7 +3,7 @@
  * Run: npm run verify:metrics  (temporarily allow-lists the E2E owner, then removes it)
  */
 import { createClient } from '@insforge/sdk'
-import { execFileSync } from 'node:child_process'
+import { sql } from './admin'
 
 const baseUrl = process.env.VITE_INSFORGE_URL!
 const anonKey = process.env.VITE_INSFORGE_ANON_KEY!
@@ -14,7 +14,6 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
 }
-const sql = (q: string) => execFileSync('npx', ['-y', '@insforge/cli', 'db', 'query', q], { stdio: 'pipe' }).toString()
 async function signIn(email: string, password: string) {
   const c = createClient({ baseUrl, anonKey })
   const { error } = await c.auth.signInWithPassword({ email, password })
@@ -36,7 +35,7 @@ async function main() {
   check('users cannot call the aggregate function directly', !!direct.error)
 
   const email = process.env.E2E_EMAIL!.toLowerCase()
-  sql(`insert into app_admins(email) values ('${email}') on conflict do nothing`)
+  await sql(`insert into app_admins(email) values ('${email}') on conflict do nothing`)
   try {
     const r = await owner.functions.invoke('admin-metrics', { body: { days: 14 } })
     const d = r.data as { days: number; totals: Record<string, number>; signups: unknown[]; dau: unknown[]; funnel: Record<string, number>; errors: unknown[] } | null
@@ -49,7 +48,7 @@ async function main() {
     const payload = JSON.stringify(d)
     check('no user emails in the payload', !/@tessera\.test|@guest\.tessera-notes\.app/.test(payload))
   } finally {
-    sql(`delete from app_admins where email = '${email}'`)
+    await sql(`delete from app_admins where email = '${email}'`)
   }
   console.log(`\n${total - failed}/${total} passed`)
   process.exit(failed ? 1 : 0)

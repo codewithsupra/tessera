@@ -144,7 +144,7 @@ async function main() {
 
   // 6. presence
   const sub = await A.client.realtime.subscribe(channel)
-  record('presence snapshot', !!sub.ok, `members=${sub.presence?.members?.length ?? 'n/a'}`)
+  record('presence snapshot', !!sub.ok, `members=${sub.ok ? sub.presence.members.length : 'n/a'}`)
 
   A.client.realtime.disconnect()
   B.client.realtime.disconnect()

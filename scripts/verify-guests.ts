@@ -3,13 +3,12 @@
  * Run: npm run verify:guests
  */
 import { createClient } from '@insforge/sdk'
-import { execFileSync } from 'node:child_process'
+import { adminKey, sql } from './admin'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 
 const baseUrl = process.env.VITE_INSFORGE_URL!
 const anonKey = process.env.VITE_INSFORGE_ANON_KEY!
-const apiKey = JSON.parse(readFileSync('.insforge/project.json', 'utf8')).api_key as string
+const apiKey = adminKey()
 const janitorKey = process.env.JANITOR_SECRET!
 type Client = ReturnType<typeof createClient>
 
@@ -20,7 +19,6 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
 }
-const sql = (q: string) => execFileSync('npx', ['-y', '@insforge/cli', 'db', 'query', q], { stdio: 'pipe' }).toString()
 const token = () => randomBytes(32).toString('base64url')
 const sha = (t: string) => createHash('sha256').update(t).digest('hex')
 const cleanup: string[] = []
@@ -106,7 +104,7 @@ async function main() {
   await g3.c.database.from('guest_claims').insert([{ token_hash: sha(t3) }])
   const guestIntoGuest = await claimVia(g4.c, t3)
   check('a guest cannot save into another guest', !guestIntoGuest.ok, guestIntoGuest.error)
-  sql(`update guest_claims set expires_at = now() - interval '1 minute' where token_hash = '${sha(t3)}'`)
+  await sql(`update guest_claims set expires_at = now() - interval '1 minute' where token_hash = '${sha(t3)}'`)
   const saver2 = await real()
   const expired = await claimVia(saver2.c, t3)
   check('expired claims are rejected', !expired.ok && /expired/i.test(expired.error ?? ''), expired.error)
@@ -124,7 +122,7 @@ async function main() {
   check('the janitor refuses callers without the secret', noKey.status === 403 && badKey.status === 403)
   const old = await guest()
   const fresh = await guest()
-  sql(`update auth.users set created_at = now() - interval '8 days' where id = '${old.id}'`)
+  await sql(`update auth.users set created_at = now() - interval '8 days' where id = '${old.id}'`)
   const run = await janitor({ 'x-janitor-key': janitorKey })
   const oldGone = await createClient({ baseUrl, anonKey }).auth.signInWithPassword({ email: old.email, password: old.password })
   const freshAlive = await createClient({ baseUrl, anonKey }).auth.signInWithPassword({ email: fresh.email, password: fresh.password })
