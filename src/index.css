@@ -78,10 +78,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-  outline: 2px solid var(--lapis);
-  outline-offset: 2px;
-  border-radius: 4px;
+/* In the base layer so utilities (e.g. the page title's focus-visible:outline-none) can override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--lapis);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 /* The one orchestrated moment: mosaic tiles settle into place on first load. */
@@ -106,4 +109,121 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- Editor content ---------- */
+.tessera-prose {
+  outline: none;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--ink);
+  caret-color: var(--lapis);
+}
+.tessera-prose > * + * {
+  margin-top: 0.55em;
+}
+.tessera-prose h1,
+.tessera-prose h2,
+.tessera-prose h3 {
+  font-family: var(--font-display);
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.tessera-prose h1 {
+  font-size: 1.85rem;
+  margin-top: 1.4em;
+}
+.tessera-prose h2 {
+  font-size: 1.45rem;
+  margin-top: 1.2em;
+}
+.tessera-prose h3 {
+  font-size: 1.2rem;
+  margin-top: 1em;
+}
+.tessera-prose ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+.tessera-prose ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+.tessera-prose li > p {
+  margin: 0;
+}
+.tessera-prose ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.1em;
+}
+.tessera-prose ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.55em;
+  align-items: flex-start;
+}
+.tessera-prose ul[data-type='taskList'] li > label {
+  margin-top: 0.3em;
+  user-select: none;
+}
+.tessera-prose ul[data-type='taskList'] li > label input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--verdigris);
+}
+.tessera-prose ul[data-type='taskList'] li > div {
+  flex: 1;
+}
+.tessera-prose ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+.tessera-prose blockquote {
+  border-left: 3px solid var(--lapis);
+  padding-left: 1em;
+  color: var(--ink-soft);
+}
+.tessera-prose pre {
+  background: var(--plaster-deep);
+  border-radius: 8px;
+  padding: 0.9em 1.1em;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9rem;
+  overflow-x: auto;
+}
+.tessera-prose :not(pre) > code {
+  background: var(--plaster-deep);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.tessera-prose a {
+  color: var(--lapis);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tessera-prose mark {
+  background: color-mix(in srgb, var(--gold) 35%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+.tessera-prose hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 1.6em 0;
+}
+.tessera-prose p.is-empty::before,
+.tessera-prose h1.is-empty::before,
+.tessera-prose h2.is-empty::before,
+.tessera-prose h3.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-faint);
+  opacity: 0.7;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.ProseMirror-selectednode {
+  outline: 2px solid var(--lapis-soft);
+  border-radius: 4px;
 }

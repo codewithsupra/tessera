@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { insforge } from '../lib/insforge'
 import { AuthContext, type AuthUser, type OAuthProvider } from './context'
+import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
 
 type SdkUser = { id: string; email: string; profile?: { name?: string } | null } | null | undefined
 
@@ -10,27 +11,35 @@ function toUser(u: SdkUser): AuthUser | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUserState] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const setUser = useCallback((u: AuthUser | null) => {
+    writeCachedUser(u)
+    setUserState(u)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     insforge.auth.getCurrentUser().then(({ data, error }) => {
       if (cancelled) return
-      setUser(error ? null : toUser(data?.user as SdkUser))
+      const next = resolveSession({ user: toUser(data?.user as SdkUser), error }, readCachedUser())
+      // Offline fallback keeps the cache; only a definitive server answer rewrites it.
+      if (isUnreachable(error) && !data?.user) setUserState(next)
+      else setUser(next)
       setLoading(false)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [setUser])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
     setUser(toUser(data?.user as SdkUser))
     return { error: null }
-  }, [])
+  }, [setUser])
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
     const { data, error } = await insforge.auth.signUp({ email, password, name })
@@ -38,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data?.accessToken) return { error: 'Check your email to confirm your account, then sign in.' }
     setUser(toUser(data.user as SdkUser))
     return { error: null }
-  }, [])
+  }, [setUser])
 
   const signInWithOAuth = useCallback(async (provider: OAuthProvider) => {
     const { error } = await insforge.auth.signInWithOAuth(provider, {
@@ -50,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await insforge.auth.signOut()
     setUser(null)
-  }, [])
+  }, [setUser])
 
   const value = useMemo(
     () => ({ user, loading, signIn, signUp, signInWithOAuth, signOut }),
