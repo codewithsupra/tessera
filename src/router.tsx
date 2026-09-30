@@ -3,6 +3,7 @@ import { PublicOnly, RequireAuth } from './auth/guards'
 import { AuthPage } from './pages/AuthPage'
 import { LazyAppHome, LazyAppLayout, LazyPageRoute } from './pages/lazyApp'
 import { InvitePage } from './pages/InvitePage'
+import { SavePage } from './pages/SavePage'
 import { Landing } from './pages/Landing'
 import { NotFound } from './pages/NotFound'
 
@@ -29,6 +30,7 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/signin', component: () => <PublicOnly><AuthPage mode="signin" /></PublicOnly> }),
   createRoute({ getParentRoute: () => rootRoute, path: '/signup', component: () => <PublicOnly><AuthPage mode="signup" /></PublicOnly> }),
   createRoute({ getParentRoute: () => rootRoute, path: '/invite/$token', component: InvitePage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/save', component: () => <RequireAuth><SavePage /></RequireAuth> }),
   appRoute.addChildren([createRoute({ getParentRoute: () => appRoute, path: '/', component: LazyAppHome }), pageRoute]),
 ])
 

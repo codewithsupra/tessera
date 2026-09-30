@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { Logo } from '../components/Logo'
+import { TryGuestButton } from '../components/TryGuestButton'
 import { track } from '../lib/telemetry'
 
 type Tile = {
@@ -89,11 +90,9 @@ export function Landing() {
             you want.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/signup" className="rounded-md bg-lapis px-5 py-3 text-[15px] font-medium text-plaster hover:opacity-90">
-              Start writing, free
-            </Link>
-            <Link to="/signin" className="rounded-md border border-line px-5 py-3 text-[15px] font-medium text-ink hover:bg-surface">
-              Sign in
+            <TryGuestButton className="rounded-md bg-lapis px-5 py-3 text-[15px] font-medium text-plaster hover:opacity-90 disabled:opacity-70" />
+            <Link to="/signup" className="rounded-md border border-line px-5 py-3 text-[15px] font-medium text-ink hover:bg-surface">
+              Create an account
             </Link>
           </div>
           <ul className="mt-10 grid max-w-[34rem] gap-3 text-[15px] text-ink-soft sm:grid-cols-3">

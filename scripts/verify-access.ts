@@ -5,6 +5,7 @@
  */
 import { createClient } from '@insforge/sdk'
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
 const baseUrl = process.env.VITE_INSFORGE_URL!
 const anonKey = process.env.VITE_INSFORGE_ANON_KEY!
@@ -29,6 +30,15 @@ async function signedIn(email: string, password: string): Promise<Client> {
   return c
 }
 
+async function deleteUsers(ids: string[]) {
+  const apiKey = JSON.parse(readFileSync('.insforge/project.json', 'utf8')).api_key as string
+  await fetch(`${baseUrl}/api/auth/users`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds: ids }),
+  })
+}
+
 async function main() {
   const owner = await signedIn(process.env.E2E_EMAIL!, process.env.E2E_PASSWORD!)
   const stranger = await signedIn(process.env.E2E_STRANGER_EMAIL!, process.env.E2E_STRANGER_PASSWORD!)
@@ -42,6 +52,26 @@ async function main() {
   check('personal workspace created', !ws1.error && typeof wsId === 'string', ws1.error?.message)
   check('personal workspace is idempotent', ws2.data === ws1.data)
   const strangerWs = (await stranger.database.rpc('ensure_personal_workspace')).data as unknown as string
+
+  // Regression: a brand-new account must get a personal workspace on first call.
+  const newbie = createClient({ baseUrl, anonKey })
+  const newbieEmail = `e2e-fresh-${Date.now()}@tessera.test`
+  const newbiePassword = `Pw-${randomUUID()}`
+  await newbie.auth.signUp({ email: newbieEmail, password: newbiePassword, name: 'Fresh' })
+  const freshId = (await newbie.auth.getCurrentUser()).data.user?.id
+  const newbieWs = await newbie.database.rpc('ensure_personal_workspace')
+  check('a brand-new account gets a personal workspace', typeof newbieWs.data === 'string', newbieWs.error?.message)
+  const newbieAgain = await newbie.database.rpc('ensure_personal_workspace')
+  check('…and the same one on the next call', newbieAgain.data === newbieWs.data)
+  const racers = await Promise.all(
+    [1, 2, 3].map(async () => {
+      const c = createClient({ baseUrl, anonKey })
+      await c.auth.signInWithPassword({ email: newbieEmail, password: newbiePassword })
+      return (await c.database.rpc('ensure_personal_workspace')).data
+    }),
+  )
+  check('concurrent calls agree on one workspace', racers.every((r) => r === newbieWs.data), JSON.stringify(racers))
+  if (freshId) await deleteUsers([freshId])
   check('stranger gets a different workspace', !!strangerWs && strangerWs !== wsId)
 
   const anonRpc = await anon.database.rpc('ensure_personal_workspace')

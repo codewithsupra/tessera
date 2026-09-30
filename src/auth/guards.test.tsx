@@ -5,7 +5,9 @@ import { AuthContext, type AuthValue } from './context'
 import { PublicOnly, RequireAuth } from './guards'
 
 function renderAt(path: string, auth: Partial<AuthValue>) {
-  const value = { user: null, loading: false, signIn: vi.fn(), signUp: vi.fn(), signInWithOAuth: vi.fn(), signOut: vi.fn(), ...auth } as AuthValue
+  const value = { user: null, loading: false, signIn: vi.fn(), signUp: vi.fn(), signInWithOAuth: vi.fn(), signOut: vi.fn(),
+    isGuest: false,
+    startGuest: vi.fn().mockResolvedValue({ error: null }), ...auth } as AuthValue
   const root = createRootRoute()
   const router = createRouter({
     routeTree: root.addChildren([

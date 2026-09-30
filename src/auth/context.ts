@@ -11,6 +11,10 @@ export type AuthValue = {
   signUp: (name: string, email: string, password: string) => Promise<AuthResult>
   signInWithOAuth: (provider: OAuthProvider, next?: string) => Promise<AuthResult>
   signOut: () => Promise<void>
+  /** True for one-click guest accounts (see auth/guest.ts). */
+  isGuest: boolean
+  /** Resumes this device's guest, or creates a new one. */
+  startGuest: () => Promise<AuthResult>
 }
 
 export const AuthContext = createContext<AuthValue | null>(null)

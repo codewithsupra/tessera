@@ -1,11 +1,8 @@
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import DragHandle from '@tiptap/extension-drag-handle-react'
-import Highlight from '@tiptap/extension-highlight'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import { GripVertical } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type * as Y from 'yjs'
@@ -17,6 +14,7 @@ import { setPageTitle } from '../data/pages'
 import type { DocSync } from '../sync/DocSync'
 import { colorFor } from '../sync/identity'
 import { acquireSync } from '../sync/registry'
+import { contentExtensions } from './extensions'
 import { PageStatusBar } from './PageStatusBar'
 import { SlashExtension } from './SlashExtension'
 import { SlashMenu } from './SlashMenu'
@@ -51,10 +49,7 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
   const editor = useEditor({
     editable,
     extensions: [
-      StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true } }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight,
+      ...contentExtensions,
       Placeholder.configure({
         placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : "Write, or type '/' for blocks"),
       }),

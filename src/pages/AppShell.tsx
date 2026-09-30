@@ -4,6 +4,7 @@ import { FilePlus2, Menu, X } from 'lucide-react'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { takeRememberedNext } from '../auth/next'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { GuestBanner } from '../components/GuestBanner'
 import { Sidebar } from '../components/Sidebar'
 import { track } from '../lib/telemetry'
 import { SyncManager } from '../sync/SyncManager'
@@ -64,6 +65,7 @@ export function AppLayout() {
             Tessera
           </Link>
         </header>
+        <GuestBanner />
         <main className="flex-1">
           <Outlet />
         </main>
@@ -87,7 +89,15 @@ export function AppHome() {
     await navigate({ to: '/app/p/$pageId', params: { pageId: page.id } })
   }
 
+  const bootstrapping = useSyncStore((s) => s.bootstrapping)
   if (!recent) return null
+  if (bootstrapping && recent.length === 0) {
+    return (
+      <div className="flex min-h-[70dvh] items-center justify-center text-ink-soft" role="status" aria-live="polite">
+        Setting up your workspace…
+      </div>
+    )
+  }
 
   if (recent.length === 0) {
     return (

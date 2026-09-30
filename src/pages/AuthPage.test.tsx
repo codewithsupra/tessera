@@ -29,6 +29,8 @@ function renderAuth(mode: 'signin' | 'signup', overrides: Partial<AuthValue> = {
     signUp: vi.fn().mockResolvedValue({ error: null }),
     signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
     signOut: vi.fn(),
+    isGuest: false,
+    startGuest: vi.fn().mockResolvedValue({ error: null }),
     ...overrides,
   }
   const root = createRootRoute()

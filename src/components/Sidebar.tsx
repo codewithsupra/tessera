@@ -18,7 +18,7 @@ const iconBtn = 'flex h-6 w-6 items-center justify-center rounded text-ink-faint
 
 export function Sidebar() {
   const ws = useWorkspaceId()
-  const { user, signOut } = useAuth()
+  const { user, signOut, isGuest } = useAuth()
   const navigate = useNavigate()
   const rows = useLiveQuery(() => listPages(ws), [ws])
   const editable = canEdit(useSyncStore((s) => s.role))
@@ -98,11 +98,11 @@ export function Sidebar() {
           </ul>
         )}
         <ThemeToggle />
-        <button onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-ink-soft hover:bg-line/50 hover:text-ink" title={`Signed in as ${user?.email ?? ''}`}>
+        <button onClick={onSignOut} className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-ink-soft hover:bg-line/50 hover:text-ink" title={isGuest ? 'Signed in as a guest' : `Signed in as ${user?.email ?? ''}`}>
           <LogOut size={15} className="shrink-0" aria-hidden="true" />
           <span className="min-w-0">
             <span className="block">Sign out</span>
-            <span className="block truncate text-xs text-ink-faint">{user?.email}</span>
+            <span className="block truncate text-xs text-ink-faint">{isGuest ? 'Guest' : user?.email}</span>
           </span>
         </button>
       </div>

@@ -3,6 +3,7 @@ import { insforge } from '../lib/insforge'
 import { AuthContext, type AuthUser, type OAuthProvider } from './context'
 import { setDataScope } from '../data/scope'
 import { track } from '../lib/telemetry'
+import { isGuestEmail, newGuestCredentials, readGuest, writeGuest } from './guest'
 import { rememberNext } from './next'
 import { isUnreachable, readCachedUser, resolveSession, writeCachedUser } from './session'
 
@@ -33,12 +34,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    insforge.auth.getCurrentUser().then(({ data, error }) => {
+    insforge.auth.getCurrentUser().then(async ({ data, error }) => {
       if (cancelled) return
       const next = resolveSession({ user: toUser(data?.user as SdkUser), error }, readCachedUser())
       // Offline fallback keeps the cache; only a definitive server answer rewrites it.
-      if (isUnreachable(error) && !data?.user) showUser(next)
-      else setUser(next)
+      if (isUnreachable(error) && !data?.user) {
+        showUser(next)
+      } else if (!next && readGuest()) {
+        // A guest's session lapsed: quietly sign back in to the same guest workspace.
+        const g = readGuest()!
+        const res = await insforge.auth.signInWithPassword(g)
+        if (cancelled) return
+        setUser(res.error ? null : toUser(res.data?.user as SdkUser))
+        if (res.error) writeGuest(null)
+      } else {
+        setUser(next)
+      }
       setLoading(false)
     })
     return () => {
@@ -71,14 +82,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null }
   }, [])
 
+  const startGuest = useCallback(async () => {
+    const existing = readGuest()
+    if (existing) {
+      const res = await insforge.auth.signInWithPassword(existing)
+      if (!res.error) {
+        setUser(toUser(res.data?.user as SdkUser))
+        return { error: null }
+      }
+      writeGuest(null) // expired and cleaned up; start a fresh guest
+    }
+    const g = newGuestCredentials()
+    const { data, error } = await insforge.auth.signUp({ ...g, name: 'Guest' })
+    if (error) return { error: error.message }
+    if (!data?.accessToken) return { error: 'Guest workspaces are unavailable right now. Please sign up instead.' }
+    writeGuest(g)
+    setUser(toUser(data.user as SdkUser))
+    track('guest_started')
+    return { error: null }
+  }, [setUser])
+
   const signOut = useCallback(async () => {
     await insforge.auth.signOut()
     setUser(null)
   }, [setUser])
 
   const value = useMemo(
-    () => ({ user, loading, signIn, signUp, signInWithOAuth, signOut }),
-    [user, loading, signIn, signUp, signInWithOAuth, signOut],
+    () => ({ user, loading, signIn, signUp, signInWithOAuth, signOut, isGuest: isGuestEmail(user?.email), startGuest }),
+    [user, loading, signIn, signUp, signInWithOAuth, signOut, startGuest],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

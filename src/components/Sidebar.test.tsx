@@ -13,7 +13,7 @@ const user = { id: 'u1', email: 'ada@example.com', name: 'Ada' }
 const ws = localWorkspaceId(user.id)
 
 function renderSidebar() {
-  const auth = { user, loading: false, signIn: vi.fn(), signUp: vi.fn(), signInWithOAuth: vi.fn(), signOut: vi.fn() } as AuthValue
+  const auth = { user, loading: false, signIn: vi.fn(), signUp: vi.fn(), signInWithOAuth: vi.fn(), signOut: vi.fn(), isGuest: false, startGuest: vi.fn() } as AuthValue
   const root = createRootRoute()
   const router = createRouter({
     routeTree: root.addChildren([

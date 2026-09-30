@@ -5,10 +5,23 @@ import { localWorkspaceId } from '../data/workspace'
 import { insforge } from '../lib/insforge'
 import { insforgePagesApi } from './insforgePagesApi'
 import { PagesSyncEngine, adoptLocalPages } from './pagesSync'
+import { flushPendingChanges } from './flushPending'
 import { uploadDirtyDocs } from './registry'
 import { useSyncStore } from './syncStore'
 import { toast } from '../components/toastStore'
 import { cachedWorkspaces, preferredWorkspace, refreshWorkspaces, switchWorkspace } from './workspaceActions'
+
+/**
+ * First run: the server decides (atomically) which device seeds the sample pages, so a
+ * new account gets them exactly once, however many tabs or devices open at the same time.
+ */
+async function onboardOnce(workspaceId: string, isStopped: () => boolean): Promise<boolean> {
+  const { data: won } = await insforge.database.rpc('claim_onboarding', { p_workspace: workspaceId })
+  if (won !== true || isStopped()) return false
+  const { seedWorkspace } = await import('../onboarding/seed')
+  await seedWorkspace(workspaceId) // local and fast; uploading happens after the UI switches
+  return true
+}
 
 /**
  * Background sync for the signed-in user. Renders nothing.
@@ -31,6 +44,7 @@ export function SyncManager() {
     const pref = preferredWorkspace(uid)
     const start = (pref && cached.some((w) => w.id === pref) && pref) || cached.find((w) => w.isPersonal)?.id || localWorkspaceId(uid)
     store.setWorkspace(start)
+    store.setBootstrapping(!cached.length)
 
     let stopped = false
     let retry: ReturnType<typeof setTimeout> | undefined
@@ -39,14 +53,18 @@ export function SyncManager() {
       if (stopped) return
       if (error || typeof data !== 'string') {
         store.setPages('offline')
+        store.setBootstrapping(false) // offline first launch: show the on-device workspace
         retry = setTimeout(() => void run(), 5000)
         return
       }
       await adoptLocalPages(localWorkspaceId(uid), data)
+      const seeded = await onboardOnce(data, () => stopped).catch(() => false)
       const list = await refreshWorkspaces(uid).catch(() => cachedWorkspaces(uid))
       if (stopped) return
       const current = useSyncStore.getState().workspaceId
       if (!current || current.startsWith('local:') || !list.some((w) => w.id === current)) switchWorkspace(uid, data)
+      useSyncStore.getState().setBootstrapping(false)
+      if (seeded) void flushPendingChanges()
     }
     void run()
 

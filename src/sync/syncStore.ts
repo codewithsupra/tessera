@@ -11,6 +11,9 @@ type SyncState = {
   /** The user's role in the active workspace (owner while working locally). */
   role: Role
   pages: EngineStatus
+  /** First launch on this device: waiting for the server to tell us which workspace is ours. */
+  bootstrapping: boolean
+  setBootstrapping: (b: boolean) => void
   docs: Record<string, SyncStatus>
   online: boolean
   setWorkspace: (id: string) => void
@@ -25,6 +28,8 @@ export const useSyncStore = create<SyncState>((set) => ({
   workspaces: [],
   role: 'owner',
   pages: 'idle',
+  bootstrapping: false,
+  setBootstrapping: (bootstrapping) => set({ bootstrapping }),
   docs: {},
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   setWorkspace: (workspaceId) =>

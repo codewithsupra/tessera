@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { Logo } from '../components/Logo'
+import { TryGuestButton } from '../components/TryGuestButton'
 import { useAuth, type OAuthProvider } from '../auth/context'
 import { safeNext, withNext } from '../auth/next'
 import { validate, type AuthMode as Mode } from './authValidation'
@@ -100,6 +101,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
           <a href={withNext(c.to, safeNext())} className="font-medium text-lapis hover:underline">
             {c.switchLink}
           </a>
+        </p>
+        <p className="mt-2 text-sm text-ink-soft">
+          Just looking?{' '}
+          <TryGuestButton label="Try Tessera without an account" className="font-medium text-lapis hover:underline disabled:opacity-60" />
         </p>
       </main>
     </div>
