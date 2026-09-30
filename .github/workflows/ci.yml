@@ -18,8 +18,8 @@ jobs:
       VITE_INSFORGE_URL: ${{ secrets.VITE_INSFORGE_URL || 'https://example.insforge.app' }}
       VITE_INSFORGE_ANON_KEY: ${{ secrets.VITE_INSFORGE_ANON_KEY || 'ci-placeholder' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -59,9 +59,9 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.secrets.outputs.ready == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.secrets.outputs.ready == 'true'
         with:
           node-version: 24
@@ -81,7 +81,7 @@ jobs:
           npm run verify:guests
           npm run verify:telemetry
           npm run verify:metrics
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && steps.secrets.outputs.ready == 'true'
         with:
           name: playwright-report
