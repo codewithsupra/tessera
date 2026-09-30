@@ -14,7 +14,8 @@
     "verify:compaction": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-compaction.ts",
     "verify:teams": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-teams.ts",
     "verify:telemetry": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-telemetry.ts",
-    "verify:guests": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-guests.ts"
+    "verify:guests": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-guests.ts",
+    "verify:metrics": "tsx --env-file=.env.local --env-file=.env.e2e.local scripts/verify-metrics.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

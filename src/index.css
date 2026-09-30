@@ -15,6 +15,8 @@
   --verdigris: #2c6e60;
   --gold: #b08a3e;
   --warn: #86611a;
+  --viz-1: #2f5597;
+  --viz-2: #b08a3e;
   --danger: #a8402f;
   --line: #d7dad3;
   color-scheme: light;
@@ -33,6 +35,8 @@
     --verdigris: #62b3a0;
     --gold: #cfaa5c;
     --warn: #cfaa5c;
+    --viz-1: #4f86ea;
+    --viz-2: #b8892c;
     --danger: #e0806d;
     --line: #243047;
     color-scheme: dark;
@@ -51,6 +55,8 @@
   --verdigris: #62b3a0;
   --gold: #cfaa5c;
   --warn: #cfaa5c;
+  --viz-1: #4f86ea;
+  --viz-2: #b8892c;
   --danger: #e0806d;
   --line: #243047;
   color-scheme: dark;
@@ -68,6 +74,8 @@
   --color-verdigris: var(--verdigris);
   --color-gold: var(--gold);
   --color-warn: var(--warn);
+  --color-viz-1: var(--viz-1);
+  --color-viz-2: var(--viz-2);
   --color-danger: var(--danger);
   --color-line: var(--line);
   --font-display: 'Fraunces Variable', Georgia, serif;

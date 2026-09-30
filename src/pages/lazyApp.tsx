@@ -32,3 +32,8 @@ export function LazyInvite() {
 export function LazySave() {
   return <Suspense fallback={blank}><Save /></Suspense>
 }
+
+const Admin = lazy(() => import('./admin/AdminMetrics').then((m) => ({ default: m.AdminMetrics })))
+export function LazyAdmin() {
+  return <Suspense fallback={blank}><Admin /></Suspense>
+}
