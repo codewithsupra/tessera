@@ -9,7 +9,7 @@ import { summarizeStatus, useSyncStore } from '../sync/syncStore'
 const LABEL = {
   synced: { text: 'Saved', icon: Check, cls: 'text-ink-faint' },
   saving: { text: 'Saving…', icon: Loader2, cls: 'text-ink-faint' },
-  offline: { text: 'Offline · saved on this device', icon: CloudOff, cls: 'text-gold' },
+  offline: { text: 'Offline · saved on this device', icon: CloudOff, cls: 'text-warn' },
   error: { text: 'Can’t sync this page', icon: TriangleAlert, cls: 'text-danger' },
 } as const
 

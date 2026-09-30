@@ -28,6 +28,27 @@ function Harness() {
 }
 
 describe('Modal', () => {
+  it('focuses the marked field instead of the close button, and returns focus on close', () => {
+    function Focus() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>opener</button>
+          <Modal open={open} onClose={() => setOpen(false)} title="Search">
+            <input aria-label="query" data-autofocus />
+          </Modal>
+        </>
+      )
+    }
+    render(<Focus />)
+    const opener = screen.getByText('opener')
+    opener.focus()
+    fireEvent.click(opener)
+    expect(document.activeElement).toBe(screen.getByLabelText('query'))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(document.activeElement).toBe(opener)
+  })
+
   it('reopens after being closed natively (Escape)', () => {
     render(<Harness />)
     fireEvent.click(screen.getByText('open'))

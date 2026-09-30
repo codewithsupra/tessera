@@ -7,11 +7,24 @@ type Props = { open: boolean; onClose: () => void; title: string; children: Reac
 export function Modal({ open, onClose, title, children, width = 480 }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
 
+  // Return focus to whatever opened the dialog (a menu item, a button) when it closes.
+  const returnTo = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const d = ref.current
     if (!d) return
-    if (open && !d.open) d.showModal()
+    if (open && !d.open) {
+      returnTo.current = document.activeElement as HTMLElement | null
+      d.showModal()
+      // showModal() focuses the first focusable element (the close button). Prefer the field
+      // the dialog is about. (React's autoFocus doesn't set the native attribute.)
+      d.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    }
     if (!open && d.open) d.close()
+    if (!open && returnTo.current) {
+      const el = returnTo.current
+      returnTo.current = null
+      if (el.isConnected) el.focus()
+    }
   }, [open])
 
   // Escape (and form method=dialog) close the native dialog without asking React; listen

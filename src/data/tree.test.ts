@@ -1,4 +1,4 @@
-import { buildTree, descendantIds, displayTitle, nextOrder, trashRoots, type PageRow } from './tree'
+import { breadcrumb, buildTree, descendantIds, displayTitle, nextOrder, trashRoots, type PageRow } from './tree'
 
 let t = 0
 function row(id: string, parentId: string | null, extra: Partial<PageRow> = {}): PageRow {
@@ -52,5 +52,16 @@ describe('displayTitle', () => {
   it('falls back to Untitled', () => {
     expect(displayTitle('   ')).toBe('Untitled')
     expect(displayTitle(' Plan ')).toBe('Plan')
+  })
+})
+
+describe('breadcrumb', () => {
+  it('lists ancestors from the top, and stops on loops', () => {
+    const rows = [row('a', null, { title: 'Plan' }), row('b', 'a', { title: '' }), row('c', 'b', { title: 'Deep' })]
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    expect(breadcrumb(rows[2], byId)).toBe('Plan / Untitled')
+    expect(breadcrumb(rows[0], byId)).toBe('')
+    const loop = [row('x', 'y'), row('y', 'x')]
+    expect(breadcrumb(loop[0], new Map(loop.map((r) => [r.id, r]))).split(' / ').length).toBeLessThanOrEqual(5)
   })
 })

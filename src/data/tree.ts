@@ -75,3 +75,14 @@ export function trashRoots(rows: PageRow[]): PageRow[] {
 export function displayTitle(title: string): string {
   return title.trim() || 'Untitled'
 }
+
+/** "Parent / Child" trail so identically named pages can be told apart. */
+export function breadcrumb(page: PageRow, byId: Map<string, PageRow>): string {
+  const trail: string[] = []
+  let cur = page.parentId ? byId.get(page.parentId) : undefined
+  for (let i = 0; cur && i < 5; i++) {
+    trail.unshift(displayTitle(cur.title))
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined
+  }
+  return trail.join(' / ')
+}

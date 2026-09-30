@@ -1,10 +1,12 @@
 import { Link, Outlet, getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { FilePlus2, Menu, X } from 'lucide-react'
+import { FilePlus2, Menu, PanelLeft, Search, X } from 'lucide-react'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { takeRememberedNext } from '../auth/next'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { GuestBanner } from '../components/GuestBanner'
+import { ShortcutsHelp } from '../components/ShortcutsHelp'
+import { matchShortcut } from '../lib/shortcuts'
 import { Sidebar } from '../components/Sidebar'
 import { track } from '../lib/telemetry'
 import { SyncManager } from '../sync/SyncManager'
@@ -22,10 +24,38 @@ import { switchWorkspace } from '../sync/workspaceActions'
 // The editor stack (TipTap, ProseMirror, Yjs) is the bulk of the bundle; load it only when a page opens.
 const PageEditor = lazy(() => import('../editor/PageEditor').then((m) => ({ default: m.PageEditor })))
 
+const CommandPalette = lazy(() => import('../components/CommandPalette').then((m) => ({ default: m.CommandPalette })))
+
 export function AppLayout() {
   const open = useUiStore((s) => s.sidebarOpen)
   const setOpen = useUiStore((s) => s.setSidebarOpen)
+  const collapsed = useUiStore((s) => s.sidebarCollapsed)
+  const paletteOpen = useUiStore((s) => s.dialog === 'palette')
   const navigate = useNavigate()
+  const ws = useWorkspaceId()
+  const editable = canEdit(useSyncStore((s) => s.role))
+
+  // App-wide keyboard shortcuts (see lib/shortcuts.ts).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const id = matchShortcut(e)
+      if (!id) return
+      const ui = useUiStore.getState()
+      if (id === 'palette') ui.setDialog(ui.dialog === 'palette' ? null : 'palette')
+      else if (id === 'help') ui.setDialog('shortcuts')
+      else if (id === 'toggleSidebar') ui.toggleSidebar()
+      else if (id === 'newPage') {
+        if (!editable) return
+        void createPage(ws).then((page) => {
+          track('page_created', { from: 'shortcut' })
+          return navigate({ to: '/app/p/$pageId', params: { pageId: page.id } })
+        })
+      }
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [ws, editable, navigate])
 
   // Continue where an OAuth sign-in started (e.g. an invite link).
   useEffect(() => {
@@ -42,10 +72,25 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-dvh">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-md focus:bg-ink focus:px-3 focus:py-2 focus:text-sm focus:text-plaster">
+        Skip to content
+      </a>
       <SyncManager />
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-line md:block">
-        <Sidebar />
-      </aside>
+      {!collapsed && (
+        <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-line md:block" aria-label="Sidebar">
+          <Sidebar />
+        </aside>
+      )}
+      {collapsed && (
+        <button
+          onClick={() => useUiStore.getState().toggleSidebar()}
+          className="fixed left-3 top-3 z-30 hidden rounded-md border border-line bg-surface p-2 text-ink-soft shadow-sm hover:text-ink md:block"
+          aria-label="Show sidebar"
+          title="Show sidebar"
+        >
+          <PanelLeft size={18} aria-hidden="true" />
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Pages">
@@ -64,12 +109,21 @@ export function AppLayout() {
           <Link to="/app" className="font-display text-lg font-semibold">
             Tessera
           </Link>
+          <button onClick={() => useUiStore.getState().setDialog('palette')} className="ml-auto rounded-md p-2 text-ink-soft hover:bg-plaster-deep" aria-label="Search pages and commands">
+            <Search size={20} aria-hidden="true" />
+          </button>
         </header>
         <GuestBanner />
-        <main className="flex-1">
+        <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
           <Outlet />
         </main>
       </div>
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette />
+        </Suspense>
+      )}
+      <ShortcutsHelp />
     </div>
   )
 }

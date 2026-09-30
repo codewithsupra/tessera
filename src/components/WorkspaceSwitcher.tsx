@@ -5,6 +5,7 @@ import { useAuth } from '../auth/context'
 import { createWorkspace, removeMember, type Role } from '../data/workspaces'
 import { runWorkspaceExport } from '../export/actions'
 import { useSyncStore } from '../sync/syncStore'
+import { useUiStore } from '../data/uiStore'
 import { refreshWorkspaces, switchWorkspace } from '../sync/workspaceActions'
 import { MembersDialog } from './MembersDialog'
 import { Modal } from './Modal'
@@ -22,7 +23,8 @@ export function WorkspaceSwitcher() {
   const role = useSyncStore((s) => s.role)
   const active = workspaces.find((w) => w.id === activeId)
   const [open, setOpen] = useState(false)
-  const [dialog, setDialog] = useState<'create' | 'members' | 'leave' | null>(null)
+  const dialog = useUiStore((s) => s.dialog)
+  const setDialog = useUiStore((s) => s.setDialog)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export function WorkspaceSwitcher() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`Workspace: ${active?.name ?? 'Personal'}. Switch workspace`}
         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-line/50"
       >
         <span className="min-w-0 flex-1">
@@ -135,7 +138,7 @@ function CreateWorkspaceDialog({ open, onClose, onCreated }: { open: boolean; on
         <p className="text-sm text-ink-soft">A shared space for pages you write with other people. You can invite them next.</p>
         <label className="grid gap-1.5 text-sm font-medium text-ink-soft">
           Name
-          <input className={fieldCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Design team" autoFocus />
+          <input className={fieldCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Design team" data-autofocus />
         </label>
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2">

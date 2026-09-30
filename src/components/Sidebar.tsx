@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronRight, FileText, LogOut, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { ChevronRight, FileText, LogOut, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { isMac } from '../lib/shortcuts'
 import { useState } from 'react'
 import { useAuth } from '../auth/context'
 import { createPage, listPages, restorePage, trashPage } from '../data/pages'
@@ -56,15 +57,22 @@ export function Sidebar() {
         <WorkspaceSyncLabel />
       </div>
 
+      <button
+        onClick={() => useUiStore.getState().setDialog('palette')}
+        className="mx-1 mt-4 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-soft hover:bg-line/50 hover:text-ink"
+      >
+        <Search size={16} aria-hidden="true" /> Search
+        <kbd className="ml-auto rounded border border-line px-1 font-sans text-[11px] text-ink-faint">{isMac() ? '⌘K' : 'Ctrl K'}</kbd>
+      </button>
       {editable ? (
         <button
           onClick={() => newPage()}
-          className="mx-1 mt-4 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink-soft hover:bg-line/50 hover:text-ink"
+          className="mx-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink-soft hover:bg-line/50 hover:text-ink"
         >
           <Plus size={16} aria-hidden="true" /> New page
         </button>
       ) : (
-        <p className="mx-1 mt-4 px-2 py-1.5 text-xs text-ink-faint">You can view pages here. Ask the owner for edit access.</p>
+        <p className="mx-1 px-2 py-1.5 text-xs text-ink-faint">You can view pages here. Ask the owner for edit access.</p>
       )}
 
       <div className="mt-2 flex-1 overflow-y-auto">
