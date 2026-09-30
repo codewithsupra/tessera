@@ -20,7 +20,7 @@ import { SlashExtension } from './SlashExtension'
 import { SlashMenu } from './SlashMenu'
 
 /** Opens the page's local Y.Doc (instant), starts cloud sync in the background, mounts the editor. */
-export function PageEditor({ pageId }: { pageId: string }) {
+export function PageEditor({ pageId, fallbackTitle = '' }: { pageId: string; fallbackTitle?: string }) {
   const [state, setState] = useState<{ doc: Y.Doc; sync: DocSync } | null>(null)
   const readOnly = !canEdit(useSyncStore((s) => s.role))
 
@@ -37,10 +37,10 @@ export function PageEditor({ pageId }: { pageId: string }) {
   }, [pageId, readOnly])
 
   if (!state) return <div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />
-  return <LoadedEditor key={pageId} pageId={pageId} doc={state.doc} sync={state.sync} />
+  return <LoadedEditor key={pageId} pageId={pageId} doc={state.doc} sync={state.sync} fallbackTitle={fallbackTitle} />
 }
 
-function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync: DocSync }) {
+function LoadedEditor({ pageId, doc, sync, fallbackTitle }: { pageId: string; doc: Y.Doc; sync: DocSync; fallbackTitle: string }) {
   const { user } = useAuth()
   const name = user?.name ?? user?.email ?? 'Someone'
   const color = colorFor(user?.id ?? 'anon')
@@ -57,7 +57,8 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
       CollaborationCaret.configure({ provider: sync, user: { name, color, id: user?.id } }),
       SlashExtension,
     ],
-    editorProps: { attributes: { class: 'tessera-prose', 'aria-label': 'Page content' } },
+    // role=textbox makes the aria-label valid on the editable region (axe: aria-prohibited-attr).
+    editorProps: { attributes: { class: 'tessera-prose', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Page content' } },
   })
 
   // Viewers get a read-only editor and a sync that never sends (the server would refuse anyway).
@@ -70,7 +71,7 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
     <article className="mx-auto w-full max-w-[720px] px-5 pb-40 pt-6 sm:px-12">
       <PageStatusBar pageId={pageId} sync={sync} selfId={user?.id} readOnly={!editable} />
       <div className="pt-8">
-        <TitleField pageId={pageId} doc={doc} editor={editor} readOnly={!editable} />
+        <TitleField pageId={pageId} doc={doc} editor={editor} readOnly={!editable} fallback={fallbackTitle} />
       </div>
       {editor && editable && (
         <DragHandle editor={editor}>
@@ -85,26 +86,36 @@ function LoadedEditor({ pageId, doc, sync }: { pageId: string; doc: Y.Doc; sync:
   )
 }
 
-function TitleField({ pageId, doc, editor, readOnly }: { pageId: string; doc: Y.Doc; editor: Editor | null; readOnly: boolean }) {
+function TitleField({ pageId, doc, editor, readOnly, fallback }: { pageId: string; doc: Y.Doc; editor: Editor | null; readOnly: boolean; fallback: string }) {
   const ytitle = doc.getText('title')
-  const [title, setTitle] = useState(() => ytitle.toString())
+  const [ytitleText, setTitle] = useState(() => ytitle.toString())
+  // Pages created elsewhere (API, import, an older client) may carry their title only in the
+  // page metadata. Show it until someone edits the title, which writes it into the doc.
+  const title = ytitleText || fallback
   const ref = useRef<HTMLTextAreaElement>(null)
 
   // Y.Text is the source of truth (it merges remote edits); mirror it into the local index.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
+    let pending: string | null = null
     // Viewers only display the title; mirroring it would mark the page dirty for a push they can't make.
     const sync = () => {
       const next = ytitle.toString()
       setTitle(next)
       clearTimeout(timer)
-      if (!readOnly) timer = setTimeout(() => void setPageTitle(pageId, next), 250)
+      if (readOnly) return
+      pending = next
+      timer = setTimeout(() => {
+        pending = null
+        void setPageTitle(pageId, next)
+      }, 250)
     }
     ytitle.observe(sync)
     return () => {
       ytitle.unobserve(sync)
       clearTimeout(timer)
-      if (!readOnly) void setPageTitle(pageId, ytitle.toString())
+      // Flush only a change that is still waiting — never overwrite the stored title otherwise.
+      if (pending !== null) void setPageTitle(pageId, pending)
     }
   }, [ytitle, pageId, readOnly])
 
@@ -118,8 +129,8 @@ function TitleField({ pageId, doc, editor, readOnly }: { pageId: string; doc: Y.
 
   // New, empty pages start with the cursor in the title.
   useEffect(() => {
-    if (!ytitle.toString() && !readOnly) ref.current?.focus()
-  }, [ytitle, readOnly])
+    if (!ytitle.toString() && !fallback && !readOnly) ref.current?.focus()
+  }, [ytitle, readOnly, fallback])
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' || (e.key === 'ArrowDown' && e.currentTarget.selectionStart === title.length)) {

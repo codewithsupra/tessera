@@ -35,10 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     // Visitors who have never signed in on this device skip the session check entirely:
     // no network round-trip on the landing page, and no 401 from a refresh that can't succeed.
     if (!mightHaveSession()) return
-    void (async () => {
+    const retry = () => {
+      clearTimeout(retryTimer)
+      window.removeEventListener('online', retry)
+      void restore()
+    }
+    const restore = async () => {
       const insforge = await sdk()
       const { data, error } = await insforge.auth.getCurrentUser()
       if (cancelled) return
@@ -46,6 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Offline fallback keeps the cache; only a definitive server answer rewrites it.
       if (isUnreachable(error) && !data?.user) {
         showUser(next)
+        // Opened offline, the session token was never refreshed: every request would be
+        // rejected once the network is back. Restore the session as soon as it can be.
+        window.addEventListener('online', retry)
+        retryTimer = setTimeout(retry, 15_000)
       } else if (!next && readGuest() && readCachedUser()?.email === readGuest()!.email) {
         // A guest's session lapsed (they didn't sign out): quietly sign back in to the same workspace.
         const g = readGuest()!
@@ -57,9 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(next)
       }
       setLoading(false)
-    })()
+    }
+    void restore()
     return () => {
       cancelled = true
+      clearTimeout(retryTimer)
+      window.removeEventListener('online', retry)
     }
   }, [setUser, showUser])
 

@@ -45,6 +45,19 @@ describe('sync registry', () => {
     await b.release()
   })
 
+  it('clears a stale upload flag once the server is confirmed to have the page, even while it is open', async () => {
+    server.pages.add('p4')
+    await db.pages.put({ id: 'p4', workspaceId: 'w', parentId: null, title: '', icon: null, kind: 'page', order: 0, createdAt: 1, updatedAt: 1, deletedAt: null, dirty: 0, docDirty: 1 })
+    const editorHandle = acquireSync('p4') // e.g. the page is open in the editor
+    await editorHandle.ready
+    await settle()
+    expect((await db.pages.get('p4'))?.docDirty).toBe(0) // resync confirmed nothing to push
+    await db.pages.update('p4', { docDirty: 1 }) // flag set again by something else
+    expect(await uploadDirtyDocs('w', () => false)).toEqual([])
+    expect((await db.pages.get('p4'))?.docDirty).toBe(0)
+    await editorHandle.release()
+  })
+
   it('uploads content for pages edited while offline, then clears the flag', async () => {
     server.pages.add('p3')
     const client = server.client('me')

@@ -165,7 +165,10 @@ export class DocSync {
         this.queue.push(missing)
         await this.flush() // sets synced/offline itself
       } else if (this.queue.length === 0) {
-        this.setDirty(false)
+        // The server provably has everything: report clean even if we never saw it dirty,
+        // so flags set elsewhere (e.g. freshly seeded pages) are cleared.
+        this.dirty = false
+        this.opts.onDirtyChange?.(false)
         this.setStatus('synced')
       }
     } catch (e) {

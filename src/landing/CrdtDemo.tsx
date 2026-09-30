@@ -59,7 +59,7 @@ function DeviceCard({ device, online, pending, onToggle, onInteract }: { device:
       Collaboration.configure({ document: device.doc, field: 'content' }),
       CollaborationCaret.configure({ provider: device.sync, user: { name: device.name, color: device.color } }),
     ],
-    editorProps: { attributes: { class: 'tessera-prose demo-prose', 'aria-label': `${device.label} — editable demo note` } },
+    editorProps: { attributes: { class: 'tessera-prose demo-prose', role: 'textbox', 'aria-multiline': 'true', 'aria-label': `${device.label} — editable demo note` } },
   })
 
   return (

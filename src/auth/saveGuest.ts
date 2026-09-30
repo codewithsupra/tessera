@@ -2,7 +2,7 @@ import { setDataScope } from '../data/scope'
 import { newInviteToken, sha256Hex } from '../data/workspaces'
 import { functionErrorMessage } from '../lib/functionError'
 import { insforge } from '../lib/insforge'
-import { flush as flushTelemetry, track } from '../lib/telemetry'
+import { flush as flushTelemetry, reportError, track } from '../lib/telemetry'
 import { flushPendingChanges } from '../sync/flushPending'
 import { deleteGuestLocalData, writeGuest } from './guest'
 import { writeCachedUser } from './session'
@@ -35,7 +35,9 @@ export async function saveGuestWorkspace(
   onStep: (s: SaveStep) => void,
 ): Promise<SaveResult> {
   onStep('syncing')
-  if (!(await flushPendingChanges())) {
+  const flushed = await flushPendingChanges()
+  if (!flushed.ok) {
+    reportError(new Error(flushed.reason), 'guest-save-flush')
     return { ok: false, error: 'Couldn’t sync your latest changes. Check your connection and try again.' }
   }
 

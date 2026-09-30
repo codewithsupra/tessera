@@ -78,16 +78,22 @@ export function acquireSync(pageId: string, opts: { readOnly?: boolean } = {}): 
   }
 }
 
-/** Uploads content for pages edited while their sync wasn't running (offline, or pre-M3). */
-export async function uploadDirtyDocs(workspaceId: string, isStopped: () => boolean): Promise<void> {
+/**
+ * Uploads content for pages edited while their sync wasn't running (offline, or pre-M3).
+ * Returns the pages that couldn't be confirmed, with the sync status they ended in.
+ */
+export async function uploadDirtyDocs(workspaceId: string, isStopped: () => boolean): Promise<{ id: string; status: string }[]> {
+  const failed: { id: string; status: string }[] = []
   const dirty = await db.pages.where('[workspaceId+docDirty]').equals([workspaceId, 1]).toArray()
   for (const page of dirty) {
-    if (isStopped()) return
-    if (live.has(page.id)) continue // the editor's sync already handles it
+    if (isStopped()) break
+    // Shares the editor's sync when the page is open (reference-counted), so the flag still clears.
     const h = acquireSync(page.id)
     const sync = await h.ready
     await sync.flush()
     if (sync.status === 'synced') await db.pages.update(page.id, { docDirty: 0 })
+    else failed.push({ id: page.id, status: sync.status })
     await h.release()
   }
+  return failed
 }

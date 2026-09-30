@@ -254,7 +254,7 @@ export function PageView({ pageId }: { pageId: string }) {
   }
   return (
     <Suspense fallback={<div className="mx-auto h-40 max-w-[720px]" aria-busy="true" />}>
-      <PageEditor pageId={pageId} />
+      <PageEditor pageId={pageId} fallbackTitle={page.title} />
     </Suspense>
   )
 }
