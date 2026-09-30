@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Lighthouse (mobile profile) for the given paths against a running `vite preview` on :4180.
+# Lighthouse (mobile profile) for the given paths against a running `vite preview` on :4180,
+# or any deployed site via LH_BASE (e.g. LH_BASE=https://tessera-notes.vercel.app).
 # Usage: scripts/lighthouse.sh / /engineering
 set -euo pipefail
 OUT="${LH_OUT:-/tmp}"
+BASE="${LH_BASE:-http://localhost:4180}"
 for path in "$@"; do
   name=$(echo "$path" | tr '/' '_'); name=${name:-_}
   for attempt in 1 2 3; do
-    npx -y lighthouse@12 "http://localhost:4180$path" --quiet --chrome-flags="--headless=new" --output=json \
+    npx -y lighthouse@12 "$BASE$path" --quiet --chrome-flags="--headless=new" --output=json \
       --output-path="$OUT/lh$name.json" --only-categories=performance,accessibility,best-practices,seo >/dev/null 2>&1 || true
     python3 - "$OUT/lh$name.json" "$path" <<'PY' && break
 import json, sys

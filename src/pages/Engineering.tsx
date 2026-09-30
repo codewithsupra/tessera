@@ -131,8 +131,18 @@ const BUGS: [string, string][] = [
 export function Engineering() {
   useEffect(() => {
     document.title = 'How Tessera is built · Tessera'
+    // index.html's canonical/og:url point at the home page; without this, search engines
+    // treat this write-up as a duplicate of "/".
+    const links = [document.querySelector<HTMLLinkElement>('link[rel="canonical"]')]
+    const og = document.querySelector<HTMLMetaElement>('meta[property="og:url"]')
+    const prev = [links[0]?.href, og?.content]
+    const url = `${window.location.origin}/engineering`
+    if (links[0]) links[0].href = url
+    if (og) og.content = url
     return () => {
       document.title = 'Tessera'
+      if (links[0] && prev[0]) links[0].href = prev[0]
+      if (og && prev[1]) og.content = prev[1]
     }
   }, [])
 

@@ -5,6 +5,8 @@ import { existsSync } from 'node:fs'
 for (const f of ['.env.local', '.env.e2e.local']) if (existsSync(f)) process.loadEnvFile(f)
 
 const PORT = 4190
+// Set to smoke-test a deployed site (e.g. production) instead of a local build.
+const remote = process.env.PLAYWRIGHT_BASE_URL
 
 export default defineConfig({
   testDir: 'e2e',
@@ -16,15 +18,17 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: remote ?? `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     ...devices['Desktop Chrome'],
   },
-  webServer: {
-    command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  webServer: remote
+    ? undefined
+    : {
+        command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
+        url: `http://localhost:${PORT}`,
+        reuseExistingServer: !process.env.CI,
+        timeout: 180_000,
+      },
 })
